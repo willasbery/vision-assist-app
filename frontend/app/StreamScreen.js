@@ -26,6 +26,9 @@ const StreamScreen = ({ navigation }) => {
   const [status, setStatus] = useState('Connecting...');
   const [serverIP, setServerIP] = useState(null);
 
+  const [lastImage, setLastImage] = useState(null);
+  const [response, setResponse] = useState(null);
+
   const cameraRef = useRef(null);
   const device = useCameraDevice('back');
   const format = useCameraFormat(device, [
@@ -120,7 +123,8 @@ const StreamScreen = ({ navigation }) => {
         if (response.type === 'processed_frame') {
           setLastImage(response.data); // Use base64 data directly
         } else if (response.type === 'error') {
-          Alert.alert('Error', response.message);
+          console.error('Server error:', response.data);
+          setResponse(response.data);
         }
       } catch (e) {
         console.error('Message parsing error:', e);
@@ -174,6 +178,7 @@ const StreamScreen = ({ navigation }) => {
         frameProcessor={frameProcessor}
         fps={30}
       />
+      (response && <Text>{response}</Text>)
     </SafeAreaView>
   );
 };
