@@ -89,7 +89,6 @@ async def websocket_endpoint(websocket: WebSocket):
             data = await websocket.receive_text()
             try:
                 json_data = json.loads(data)
-                print("Received data:", json_data[:20])
                 
                 if json_data.get("type") in ["frame", "image"]:
                     current_time = datetime.now()

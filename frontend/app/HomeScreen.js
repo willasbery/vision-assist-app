@@ -13,9 +13,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
-
-// Only import Camera if you need it for takePicture
 import { Camera } from 'expo-camera';
+
 
 const HomeScreen = ({ navigation }) => {
   const [status, setStatus] = useState('Disconnected');
@@ -270,9 +269,6 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: 'bold',
   },
-  settingsButton: {
-    padding: 10,
-  },
   buttonContainer: {
     gap: 15,
     marginBottom: 20,
@@ -295,68 +291,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginVertical: 20,
   },
-  loadingText: {
-    marginTop: 10,
-    color: '#666',
-  },
   previewContainer: {
     marginTop: 20,
     alignItems: 'center',
-  },
-  previewText: {
-    fontSize: 16,
-    marginBottom: 10,
-    color: '#666',
   },
   preview: {
     width: '100%',
     height: 300,
     borderRadius: 10,
     backgroundColor: '#f0f0f0',
-  },
-  inputContainer: {
-    padding: 20,
-  },
-  label: {
-    fontSize: 16,
-    marginBottom: 10,
-    color: '#666',
-  },
-  input: {
-    borderWidth: 1,
-    borderColor: '#ddd',
-    borderRadius: 8,
-    padding: 12,
-    fontSize: 16,
-    marginBottom: 20,
-  },
-  cameraContainer: {
-    flex: 1,
-    backgroundColor: 'black',
-  },
-  camera: {
-    flex: 1,
-    backgroundColor: 'black',
-  },
-  cameraOverlay: {
-    flex: 1,
-    backgroundColor: 'transparent',
-    justifyContent: 'flex-end',
-    padding: 20,
-  },
-  streamButton: {
-    alignItems: 'center',
-    marginBottom: 30,
-  },
-  streamButtonText: {
-    color: 'white',
-    fontSize: 16,
-    marginTop: 10,
-    textAlign: 'center',
-  },
-  buttonStreaming: {
-    backgroundColor: '#ff4444',
-  },
+  }
 });
 
 export default HomeScreen;

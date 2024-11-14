@@ -6,32 +6,36 @@ import {
   StyleSheet,
   Alert,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Camera, runAtTargetFps, useCameraDevice, useCameraFormat, useCameraPermission, useFrameProcessor } from 'react-native-vision-camera';
 
-import { convertFrameToBase64 } from './convertFrameToBase64';
+import { 
+  Camera, 
+  runAtTargetFps, 
+  useCameraDevice, 
+  useCameraFormat, 
+  useCameraPermission, 
+  useFrameProcessor 
+} from 'react-native-vision-camera';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import AsyncStorage from '@react-native-async-storage/async-storage'
 import { Worklets } from 'react-native-worklets-core';
+
+import { convertFrameToBase64 } from './utils/convertFrameToBase64';
+
 
 const StreamScreen = ({ navigation }) => {
   const [status, setStatus] = useState('Connecting...');
   const [serverIP, setServerIP] = useState(null);
-  const [loading, setLoading] = useState(false);
-  const [lastImage, setLastImage] = useState(null);
-  const ws = useRef(null);
 
-  const [isStreaming, setIsStreaming] = useState(false);
-  const streamInterval = useRef(null);
   const cameraRef = useRef(null);
-
   const device = useCameraDevice('back');
-  const { hasPermission, requestPermission }= useCameraPermission();
-
   const format = useCameraFormat(device, [
     { videoResolution: { width: 1280, height: 720 } },
     { photoResolution: { width: 1280, height: 720 } },
     { fps: 30 },
   ])
+  const { hasPermission, requestPermission } = useCameraPermission();
+
+  const ws = useRef(null);
 
   useEffect(() => {
     loadServerIP();
@@ -56,62 +60,6 @@ const StreamScreen = ({ navigation }) => {
       }
     };
   }, [serverIP]);
-
-  useEffect(() => {
-    return () => {
-      if (streamInterval.current) {
-        clearInterval(streamInterval.current);
-      }
-    };
-  }, []);
-
-  // const startStream = async () => {
-  //   if (!device || !cameraRef.current) return;
-    
-  //   setIsStreaming(true);
-    
-  //   streamInterval.current = setInterval(async () => {
-  //     try {
-  //       if (cameraRef.current && ws.current?.readyState === WebSocket.OPEN) {
-  //         const photo = await cameraRef.current.takePhoto({
-  //           qualityPrioritization: 'quality',
-  //           flash: 'off',
-  //           enableShutterSound: false,
-  //         });
-
-  //         // const photo = await cameraRef.current.takeSnapshot({
-  //         //   quality: 100,
-  //         // });
-          
-  //         // Read the photo file and convert to base64
-  //         const response = await fetch(`file://${photo.path}`);
-  //         const blob = await response.blob();
-  //         const reader = new FileReader();
-          
-  //         reader.onload = () => {
-  //           const base64data = reader.result.split(',')[1];
-  //           ws.current.send(JSON.stringify({
-  //             type: 'frame',
-  //             data: `data:image/jpeg;base64,${base64data}`,
-  //             timestamp: Date.now(),
-  //           }));
-  //         };
-          
-  //         reader.readAsDataURL(blob);
-  //       }
-  //     } catch (error) {
-  //       console.error('Error capturing frame:', error);
-  //     }
-  //   }, 1000);
-  // };
-
-  // const stopStream = () => {
-  //   if (streamInterval.current) {
-  //     clearInterval(streamInterval.current);
-  //     streamInterval.current = null;
-  //   }
-  //   setIsStreaming(false);
-  // };
 
   const onConversion = Worklets.createRunOnJS((imageAsBase64) => {
     if (ws.current?.readyState === WebSocket.OPEN) {
@@ -177,14 +125,12 @@ const StreamScreen = ({ navigation }) => {
       } catch (e) {
         console.error('Message parsing error:', e);
       }
-      setLoading(false);
     };
 
     ws.current.onerror = (error) => {
       console.error('WebSocket error:', error);
       setStatus('Error');
       Alert.alert('Connection Error', 'Failed to connect to server');
-      setLoading(false);
     };
   };
 
@@ -225,23 +171,9 @@ const StreamScreen = ({ navigation }) => {
         device={device}
         format={format}
         isActive={true}
-        // photo={true}
-        // photoQualityBalance={'quality'}
-        // enableZoomGesture
         frameProcessor={frameProcessor}
         fps={30}
-        // fps={[5, 10]}
       />
-      {/* <View style={styles.controls}>
-        <TouchableOpacity
-          style={[styles.button, isStreaming && styles.streamingButton]}
-          // onPress={isStreaming ? stopStream : startStream}
-        >
-          <Text style={styles.buttonText}>
-            {isStreaming ? 'Stop Streaming' : 'Start Streaming'}
-          </Text>
-        </TouchableOpacity>
-      </View> */}
     </SafeAreaView>
   );
 };

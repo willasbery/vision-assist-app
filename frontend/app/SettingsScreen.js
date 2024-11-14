@@ -10,6 +10,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
+
 const SettingsScreen = ({ navigation }) => {
   const [serverIP, setServerIP] = useState('');
 
@@ -74,64 +75,6 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#fff',
   },
-  scrollContent: {
-    flexGrow: 1,
-    padding: 20,
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 20,
-  },
-  status: {
-    fontSize: 18,
-    fontWeight: 'bold',
-  },
-  settingsButton: {
-    padding: 10,
-  },
-  buttonContainer: {
-    gap: 15,
-    marginBottom: 20,
-  },
-  button: {
-    backgroundColor: '#2196F3',
-    padding: 15,
-    borderRadius: 10,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 10,
-  },
-  buttonText: {
-    color: 'white',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  loadingContainer: {
-    alignItems: 'center',
-    marginVertical: 20,
-  },
-  loadingText: {
-    marginTop: 10,
-    color: '#666',
-  },
-  previewContainer: {
-    marginTop: 20,
-    alignItems: 'center',
-  },
-  previewText: {
-    fontSize: 16,
-    marginBottom: 10,
-    color: '#666',
-  },
-  preview: {
-    width: '100%',
-    height: 300,
-    borderRadius: 10,
-    backgroundColor: '#f0f0f0',
-  },
   inputContainer: {
     padding: 20,
   },
@@ -148,6 +91,19 @@ const styles = StyleSheet.create({
     fontSize: 16,
     marginBottom: 20,
   },
+  button: {
+    backgroundColor: '#2196F3',
+    padding: 15,
+    borderRadius: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  buttonText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: '600',
+  }
 });
 
 export default SettingsScreen;
