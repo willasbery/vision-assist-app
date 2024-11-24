@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -6,13 +6,13 @@ import {
   TouchableOpacity,
   StyleSheet,
   Alert,
-} from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+} from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 
 const SettingsScreen = ({ navigation }) => {
-  const [serverIP, setServerIP] = useState('');
+  const [serverIP, setServerIP] = useState("");
 
   useEffect(() => {
     loadServerIP();
@@ -20,29 +20,29 @@ const SettingsScreen = ({ navigation }) => {
 
   const loadServerIP = async () => {
     try {
-      const ip = await AsyncStorage.getItem('serverIP');
+      const ip = await AsyncStorage.getItem("serverIP");
       if (ip) {
         setServerIP(ip);
       }
     } catch (error) {
-      console.error('Error loading server IP:', error);
+      console.error("Error loading server IP:", error);
     }
   };
 
   const saveServerIP = async () => {
     if (!serverIP) {
-      Alert.alert('Error', 'Please enter a server IP address');
+      Alert.alert("Error", "Please enter a server IP address");
       return;
     }
 
     try {
-      await AsyncStorage.setItem('serverIP', serverIP);
-      Alert.alert('Success', 'Server IP saved successfully', [
-        { text: 'OK', onPress: () => navigation.goBack() }
+      await AsyncStorage.setItem("serverIP", serverIP);
+      Alert.alert("Success", "Server IP saved successfully", [
+        { text: "OK", onPress: () => navigation.goBack() }
       ]);
     } catch (error) {
-      console.error('Error saving server IP:', error);
-      Alert.alert('Error', 'Failed to save server IP');
+      console.error("Error saving server IP:", error);
+      Alert.alert("Error", "Failed to save server IP");
     }
   };
 
@@ -73,7 +73,7 @@ const SettingsScreen = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: "#fff",
   },
   inputContainer: {
     padding: 20,
@@ -81,28 +81,28 @@ const styles = StyleSheet.create({
   label: {
     fontSize: 16,
     marginBottom: 10,
-    color: '#666',
+    color: "#666",
   },
   input: {
     borderWidth: 1,
-    borderColor: '#ddd',
+    borderColor: "#ddd",
     borderRadius: 8,
     padding: 12,
     fontSize: 16,
     marginBottom: 20,
   },
   button: {
-    backgroundColor: '#2196F3',
+    backgroundColor: "#2196F3",
     padding: 15,
     borderRadius: 10,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
   },
   buttonText: {
-    color: 'white',
+    color: "white",
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: "600",
   }
 });
 
