@@ -1,12 +1,10 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef } from "react";
 import {
-  View,
   Text,
   TouchableOpacity,
   StyleSheet,
   Alert,
-} from 'react-native';
-
+} from "react-native";
 import { 
   Camera, 
   runAtTargetFps, 
@@ -14,35 +12,36 @@ import {
   useCameraFormat, 
   useCameraPermission, 
   useFrameProcessor 
-} from 'react-native-vision-camera';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import AsyncStorage from '@react-native-async-storage/async-storage'
-import { Worklets } from 'react-native-worklets-core';
-
-import { convertFrameToBase64 } from './utils/convertFrameToBase64';
+} from "react-native-vision-camera";
+import { SafeAreaView } from "react-native-safe-area-context";
+import AsyncStorage from "@react-native-async-storage/async-storage"
+import { Worklets } from "react-native-worklets-core";
+import { convertFrameToBase64 } from "./utils/convertFrameToBase64";
+// import { useResizePlugin } from "vision-camera-resize-plugin";
 
 
 const StreamScreen = ({ navigation }) => {
-  const [status, setStatus] = useState('Connecting...');
+  const [status, setStatus] = useState("Connecting...");
   const [serverIP, setServerIP] = useState(null);
 
   const [lastImage, setLastImage] = useState(null);
   const [response, setResponse] = useState(null);
 
   const cameraRef = useRef(null);
-  const device = useCameraDevice('back');
+  const device = useCameraDevice("back");
   const format = useCameraFormat(device, [
     { videoResolution: { width: 1280, height: 720 } },
     { photoResolution: { width: 1280, height: 720 } },
     { fps: 30 },
   ])
   const { hasPermission, requestPermission } = useCameraPermission();
+  // const { resize } = useResizePlugin();
 
   const ws = useRef(null);
 
   useEffect(() => {
     loadServerIP();
-    const unsubscribe = navigation.addListener('focus', () => {
+    const unsubscribe = navigation.addListener("focus", () => {
       loadServerIP();
     });
     return () => {
@@ -66,9 +65,9 @@ const StreamScreen = ({ navigation }) => {
 
   const onConversion = Worklets.createRunOnJS((imageAsBase64) => {
     if (ws.current?.readyState === WebSocket.OPEN) {
-      console.log('Sending frame to server');
+      console.log("Sending frame to server");
       ws.current.send(JSON.stringify({
-        type: 'frame',
+        type: "frame",
         data: `data:image/jpeg;base64,${imageAsBase64}`,
         timestamp: Date.now(),
       }));
@@ -76,14 +75,27 @@ const StreamScreen = ({ navigation }) => {
   })
 
   const frameProcessor = useFrameProcessor((frame) => {
-    'worklet';
+    "worklet";
 
     runAtTargetFps(2, () => {
-      const imageAsBase64 = convertFrameToBase64(frame);
+      // const resized = resize(frame, {
+      //   scale: {
+      //     width: 640,
+      //     height: 640
+      //   },
+      //   pixelFormat: "rgb",
+      //   dataType: "uint8"
+      // })
+
+      const imageAsBase64 = convertFrameToBase64(frame, { 
+        width: 640, 
+        height: 640 
+      });
 
       if (imageAsBase64 === null) {
         return;
       }
+
       onConversion(imageAsBase64);
     });
   }, [onConversion]);
@@ -91,50 +103,51 @@ const StreamScreen = ({ navigation }) => {
 
   const loadServerIP = async () => {
     try {
-      const ip = await AsyncStorage.getItem('serverIP');
+      const ip = await AsyncStorage.getItem("serverIP");
       if (ip) {
         setServerIP(ip);
       }
     } catch (error) {
-      console.error('Error loading server IP:', error);
+      console.error("Error loading server IP:", error);
     }
   };
 
   const connectWebSocket = () => {
     const wsUrl = `ws://${serverIP}:8000/ws`;
-    console.log('Connecting to:', wsUrl);
+    console.log("Connecting to:", wsUrl);
    
     ws.current = new WebSocket(wsUrl);
     
     ws.current.onopen = () => {
-      console.log('WebSocket Connected');
-      setStatus('Connected');
+      console.log("WebSocket Connected");
+      player.play();
+      setStatus("Connected");
     };
 
     ws.current.onclose = (e) => {
-      console.log('WebSocket Disconnected:', e.code, e.reason);
-      setStatus('Disconnected');
+      console.log("WebSocket Disconnected:", e.code, e.reason);
+      setStatus("Disconnected");
       setTimeout(connectWebSocket, 3000);
     };
 
     ws.current.onmessage = (event) => {
       try {
         const response = JSON.parse(event.data);
-        if (response.type === 'processed_frame') {
+        if (response.type === "processed_frame") {
           setLastImage(response.data); // Use base64 data directly
-        } else if (response.type === 'error') {
-          console.error('Server error:', response.data);
+        } else if (response.type === "error") {
+          console.error("Server error:", response.data);
           setResponse(response.data);
         }
       } catch (e) {
-        console.error('Message parsing error:', e);
+        console.error("Message parsing error:", e);
       }
     };
 
     ws.current.onerror = (error) => {
-      console.error('WebSocket error:', error);
-      setStatus('Error');
-      Alert.alert('Connection Error', 'Failed to connect to server');
+      console.error("WebSocket error:", error);
+      setStatus("Error");
+      Alert.alert("Connection Error", "Failed to connect to server");
     };
   };
 
@@ -144,7 +157,7 @@ const StreamScreen = ({ navigation }) => {
         <Text>Please configure server IP in settings</Text>
         <TouchableOpacity
           style={styles.button}
-          onPress={() => navigation.navigate('Settings')}
+          onPress={() => navigation.navigate("Settings")}
         >
           <Text style={styles.buttonText}>Go to Settings</Text>
         </TouchableOpacity>
@@ -186,26 +199,26 @@ const StreamScreen = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#fff',
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "#fff",
   },
   button: {
     marginTop: 20,
     padding: 15,
-    backgroundColor: '#2196F3',
+    backgroundColor: "#2196F3",
     borderRadius: 10,
     minWidth: 200,
-    alignItems: 'center',
+    alignItems: "center",
   },
   buttonText: {
-    color: '#fff',
+    color: "#fff",
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: "600",
   },
   status: {
     fontSize: 18,
-    fontWeight: 'bold',
+    fontWeight: "bold",
     marginBottom: 20,
   },
 });
