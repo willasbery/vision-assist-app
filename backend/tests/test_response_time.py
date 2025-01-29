@@ -1,51 +1,37 @@
-import base64
-import io
+import argparse
 import pytest
 import time
-from pathlib import Path
-from PIL import Image
-import asyncio
 import websockets
-import json
+from pathlib import Path
 
-# Constants
-API_ENDPOINT = "ws://localhost:8000/ws"  # WebSocket endpoint
-TEST_IMAGES_DIR = Path(__file__).parent / "images/bin_obstacles"
+from utils.image_helpers import load_image_as_base64, send_image_ws
+from settings import API_ENDPOINT
 
-def load_image_as_base64(image_path):
-    """Convert an image file to base64 string."""
-    with Image.open(image_path) as img:
-        buffered = io.BytesIO()
-        img.save(buffered, format=img.format)
-        return base64.b64encode(buffered.getvalue()).decode()
+def get_test_directory():
+    """Get the test directory from command line arguments or use default."""
+    parser = argparse.ArgumentParser(description='Run response time tests for image processing')
+    parser.add_argument('--image-dir', type=str, default="bin_obstacles",
+                       help='Directory name within the images folder')
+    
+    # Only parse known args to work with pytest
+    args, _ = parser.parse_known_args()
+    
+    # Construct the full path relative to the test directory
+    return Path(__file__).parent / "images" / args.image_dir
 
-async def send_image_ws(websocket, image_base64):
-    """Send image through websocket and await response."""
-    try:
-        payload = {
-            "type": "frame",
-            "data": f"data:image/jpeg;base64,{image_base64}",
-            "timestamp": int(time.time() * 1000)  # Current time in milliseconds
-        }
-        await websocket.send(json.dumps(payload))
-        # Add timeout to recv
-        response = await asyncio.wait_for(websocket.recv(), timeout=10.0)
-        return response
-    except asyncio.TimeoutError:
-        raise TimeoutError("WebSocket response timed out after 10 seconds")
-    except websockets.exceptions.ConnectionClosed:
-        raise ConnectionError("WebSocket connection closed unexpectedly")
+TEST_IMAGES_DIR = get_test_directory()
 
 @pytest.mark.asyncio
-async def test_response_time():
+async def test_response_time(test_images_dir):  # Use the fixture here
     """Test the response time of the prediction endpoint."""
+    
     # Ensure test images directory exists
-    assert TEST_IMAGES_DIR.exists(), f"Test images directory not found at {TEST_IMAGES_DIR}"
+    assert test_images_dir.exists(), f"Test images directory not found at {test_images_dir}"
     
     # Get all image files from the test directory
-    image_files = [f for f in TEST_IMAGES_DIR.glob("*") if f.suffix.lower() in ('.png', '.jpg', '.jpeg')]
+    image_files = [f for f in test_images_dir.glob("*") if f.suffix.lower() in ('.png', '.jpg', '.jpeg')]
     assert len(image_files) > 0, "No test images found in directory"
-
+    
     response_times = []
     
     print(f"Testing {len(image_files)} images")

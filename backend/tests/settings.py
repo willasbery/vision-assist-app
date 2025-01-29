@@ -1,0 +1,1 @@
+API_ENDPOINT = "ws://localhost:8000/ws"  # WebSocket endpoint
