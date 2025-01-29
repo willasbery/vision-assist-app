@@ -33,49 +33,46 @@ async def websocket_endpoint(websocket: WebSocket):
     try:
         while True:
             data = await websocket.receive_text()
+            
             try:
                 json_data = json.loads(data)
                 
                 if json_data.get("type") in ["frame", "image"]:
                     current_time = datetime.now()
-                    last_time = manager.last_frame_time[websocket]
+                    image_data = json_data.get("data").split(",")[1]
+                    frame = manager.base64_to_frame(image_data)
                     
-                    time_diff = (current_time - last_time).total_seconds()
-                    if time_diff >= 0.05:
-                        image_data = json_data.get("data").split(",")[1]
-                        frame = manager.base64_to_frame(image_data)
+                    logger.info("Processing frame...")
+                    start_time = datetime.now() 
+                    processed_frame, instructions = manager.video_processor.process_frame(frame)
+                    end_time = datetime.now()
+                    logger.info(f"Frame processed in {(end_time - start_time).total_seconds():.3f} seconds")
+                    
+                    if instructions is not None:
+                        processed_base64 = manager.frame_to_base64(processed_frame)
                         
-                        logger.info("Processing frame...")
-                        start_time = datetime.now() 
-                        processed_frame = manager.video_processor.process_frame(frame)
-                        end_time = datetime.now()
-                        logger.info(f"Frame processed in {(end_time - start_time).total_seconds():.3f} seconds")
+                        frame_number = manager.frame_counters[websocket]
+                        timestamp = current_time.strftime("%Y%m%d_%H%M%S_%f")
+                        filename = f"frame_{timestamp}_{frame_number:06d}.jpg"
+                        filepath = os.path.join(FRAMES_DIR, filename)
                         
-                        if processed_frame is not None:
-                            processed_base64 = manager.frame_to_base64(processed_frame)
-                            
-                            frame_number = manager.frame_counters[websocket]
-                            timestamp = current_time.strftime("%Y%m%d_%H%M%S_%f")
-                            filename = f"frame_{timestamp}_{frame_number:06d}.jpg"
-                            filepath = os.path.join(FRAMES_DIR, filename)
-                            
-                            cv2.imwrite(filepath, processed_frame)
-                            logger.debug(f"Saved processed frame: {filepath}")
-                            
-                            manager.frame_counters[websocket] += 1
-                            manager.last_frame_time[websocket] = current_time
-                            
-                            await websocket.send_json({
-                                "type": "processed_frame",
-                                "data": f"data:image/jpeg;base64,{processed_base64}",
-                                "url": f"/frames/{filename}"
-                            })
-                        else:
-                            logger.warning("Frame processing failed")
-                            await websocket.send_json({
-                                "type": "error",
-                                "message": "Frame processing failed"
-                            })
+                        cv2.imwrite(filepath, processed_frame)
+                        logger.debug(f"Saved processed frame: {filepath}")
+                        
+                        manager.frame_counters[websocket] += 1
+                        manager.last_frame_time[websocket] = current_time
+                        
+                        await websocket.send_json({
+                            "type": "processed_frame",
+                            "data": f"data:image/jpeg;base64,{processed_base64}",
+                            "url": f"/frames/{filename}"
+                        })
+                    else:
+                        logger.warning("Frame processing failed")
+                        await websocket.send_json({
+                            "type": "error",
+                            "message": "Frame processing failed"
+                        })
                 
             except json.JSONDecodeError:
                 logger.error("Invalid JSON received")

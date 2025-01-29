@@ -1,2 +1,5 @@
 .venv
 __pycache__
+
+stream_frames
+frames_from_tests
