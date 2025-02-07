@@ -8,41 +8,31 @@ import {
   Alert,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 
+import { loadServerIP, saveServerIP } from "@/common/serverManager";
 
 const SettingsScreen = ({ navigation }) => {
   const [serverIP, setServerIP] = useState("");
 
   useEffect(() => {
-    loadServerIP();
+    loadInitialIP();
   }, []);
 
-  const loadServerIP = async () => {
-    try {
-      const ip = await AsyncStorage.getItem("serverIP");
-      if (ip) {
-        setServerIP(ip);
-      }
-    } catch (error) {
-      console.error("Error loading server IP:", error);
+  const loadInitialIP = async () => {
+    const ip = await loadServerIP();
+    if (ip) {
+      setServerIP(ip);
     }
   };
 
-  const saveServerIP = async () => {
-    if (!serverIP) {
-      Alert.alert("Error", "Please enter a server IP address");
-      return;
-    }
-
+  const handleSaveServerIP = async () => {
     try {
-      await AsyncStorage.setItem("serverIP", serverIP);
+      await saveServerIP(serverIP);
       Alert.alert("Success", "Server IP saved successfully", [
         { text: "OK", onPress: () => navigation.goBack() }
       ]);
     } catch (error) {
-      console.error("Error saving server IP:", error);
-      Alert.alert("Error", "Failed to save server IP");
+      Alert.alert("Error", error.message);
     }
   };
 
@@ -62,7 +52,7 @@ const SettingsScreen = ({ navigation }) => {
 
       <TouchableOpacity
         style={styles.button}
-        onPress={saveServerIP}
+        onPress={handleSaveServerIP}
       >
         <Text style={styles.buttonText}>Save Settings</Text>
       </TouchableOpacity>

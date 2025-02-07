@@ -14,18 +14,27 @@ import {
   useFrameProcessor 
 } from "react-native-vision-camera";
 import { SafeAreaView } from "react-native-safe-area-context";
-import AsyncStorage from "@react-native-async-storage/async-storage"
 import { Worklets } from "react-native-worklets-core";
-import { convertFrameToBase64 } from "./utils/convertFrameToBase64";
-// import { useResizePlugin } from "vision-camera-resize-plugin";
 
+import { convertFrameToBase64 } from "@/utils/convertFrameToBase64";
+import { loadServerIP } from "@/common/serverManager";
+import WebSocketManager from "@/common/websockets";
 
 const StreamScreen = ({ navigation }) => {
   const [status, setStatus] = useState("Connecting...");
   const [serverIP, setServerIP] = useState(null);
 
-  const [lastImage, setLastImage] = useState(null);
+  const [instructions, setInstructions] = useState(null);
   const [response, setResponse] = useState(null);
+
+  // Sound effects
+  const continueForward = new Player('continue_forward.wav')
+  const immediatelyTurnLeft = new Player('immediately_turn_left.wav')
+  const immediatelyTurnRight = new Player('immediately_turn_right.wav')
+  const possiblyTurnLeft = new Player('possibly_turn_left.wav')
+  const possiblyTurnRight = new Player('possibly_turn_right.wav')
+  const turnLeft = new Player('turn_left.wav')
+  const turnRight = new Player('turn_right.wav')
 
   const cameraRef = useRef(null);
   const device = useCameraDevice("back");
@@ -37,60 +46,81 @@ const StreamScreen = ({ navigation }) => {
   const { hasPermission, requestPermission } = useCameraPermission();
   // const { resize } = useResizePlugin();
 
-  const ws = useRef(null);
+  const wsManager = useRef(null);
+
+  const loadInitialIP = async () => {
+    const ip = await loadServerIP();
+    if (ip) {
+      setServerIP(ip);
+    }
+  };
 
   useEffect(() => {
-    loadServerIP();
+    turnRight.play()
+  }, []);
+
+  useEffect(() => {
+    loadInitialIP();
     const unsubscribe = navigation.addListener("focus", () => {
-      loadServerIP();
+      loadInitialIP();
     });
     return () => {
       unsubscribe();
-      if (ws.current) {
-        ws.current.close();
-      }
+      wsManager.current?.disconnect();
     };
   }, [navigation]);
 
   useEffect(() => {
     if (serverIP) {
-      connectWebSocket();
+      wsManager.current = new WebSocketManager(serverIP, {
+        onStatusChange: setStatus,
+        onMessage: (response) => {
+          console.log('Server response:', response);
+          if (response.type === "success") {
+            const parsedInstructions = JSON.parse(response.data);
+            setInstructions(parsedInstructions);
+
+            Tts.stop();
+            parsedInstructions.forEach((instruction, _) => {
+              const text = `${instruction.instruction_type} ${instruction.direction} ${instruction.danger} danger`;
+              Tts.speak(text);
+            });
+          } else if (response.type === "error") {
+            console.error("Server error:", response.data);
+            setResponse(response.data);
+          }
+        },
+        onError: (error) => {
+          Alert.alert("Connection Error", "Failed to connect to server");
+        }
+      });
+      wsManager.current.connect();
     }
     return () => {
-      if (ws.current) {
-        ws.current.close();
-      }
+      wsManager.current?.disconnect();
     };
   }, [serverIP]);
 
+  
+
   const onConversion = Worklets.createRunOnJS((imageAsBase64) => {
-    if (ws.current?.readyState === WebSocket.OPEN) {
-      console.log("Sending frame to server");
-      ws.current.send(JSON.stringify({
-        type: "frame",
-        data: `data:image/jpeg;base64,${imageAsBase64}`,
-        timestamp: Date.now(),
-      }));
-    }
-  })
+    wsManager.current?.send({
+      type: "frame",
+      data: `data:image/jpeg;base64,${imageAsBase64}`,
+      timestamp: Date.now(),
+    });
+  });
 
   const frameProcessor = useFrameProcessor((frame) => {
     "worklet";
 
     runAtTargetFps(2, () => {
-      // const resized = resize(frame, {
-      //   scale: {
-      //     width: 640,
-      //     height: 640
-      //   },
-      //   pixelFormat: "rgb",
-      //   dataType: "uint8"
-      // })
+      // const imageAsBase64 = convertFrameToBase64(frame, { 
+      //   width: 640, 
+      //   height: 640 
+      // });
 
-      const imageAsBase64 = convertFrameToBase64(frame, { 
-        width: 640, 
-        height: 640 
-      });
+      const imageAsBase64 = convertFrameToBase64(frame);
 
       if (imageAsBase64 === null) {
         return;
@@ -99,57 +129,6 @@ const StreamScreen = ({ navigation }) => {
       onConversion(imageAsBase64);
     });
   }, [onConversion]);
-
-
-  const loadServerIP = async () => {
-    try {
-      const ip = await AsyncStorage.getItem("serverIP");
-      if (ip) {
-        setServerIP(ip);
-      }
-    } catch (error) {
-      console.error("Error loading server IP:", error);
-    }
-  };
-
-  const connectWebSocket = () => {
-    const wsUrl = `ws://${serverIP}:8000/ws`;
-    console.log("Connecting to:", wsUrl);
-   
-    ws.current = new WebSocket(wsUrl);
-    
-    ws.current.onopen = () => {
-      console.log("WebSocket Connected");
-      player.play();
-      setStatus("Connected");
-    };
-
-    ws.current.onclose = (e) => {
-      console.log("WebSocket Disconnected:", e.code, e.reason);
-      setStatus("Disconnected");
-      setTimeout(connectWebSocket, 3000);
-    };
-
-    ws.current.onmessage = (event) => {
-      try {
-        const response = JSON.parse(event.data);
-        if (response.type === "processed_frame") {
-          setLastImage(response.data); // Use base64 data directly
-        } else if (response.type === "error") {
-          console.error("Server error:", response.data);
-          setResponse(response.data);
-        }
-      } catch (e) {
-        console.error("Message parsing error:", e);
-      }
-    };
-
-    ws.current.onerror = (error) => {
-      console.error("WebSocket error:", error);
-      setStatus("Error");
-      Alert.alert("Connection Error", "Failed to connect to server");
-    };
-  };
 
   if (!serverIP) {
     return (
@@ -191,7 +170,14 @@ const StreamScreen = ({ navigation }) => {
         frameProcessor={frameProcessor}
         fps={30}
       />
-      (response && <Text>{response}</Text>)
+      {instructions && (
+        <Text style={styles.instructions}>
+          {instructions.map((instruction, index) => (
+            `${index + 1}. ${instruction.instruction_type}: ${instruction.direction} (${instruction.danger} danger)\n`
+          ))}
+        </Text>
+      )}
+      {response && <Text style={styles.error}>{response}</Text>}
     </SafeAreaView>
   );
 };
@@ -221,6 +207,23 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
     marginBottom: 20,
   },
+  instructions: {
+    position: 'absolute',
+    top: 100,
+    left: 20,
+    right: 20,
+    backgroundColor: 'rgba(255, 255, 255, 0.8)',
+    padding: 10,
+    borderRadius: 5,
+  },
+  error: {
+    color: 'red',
+    position: 'absolute',
+    bottom: 20,
+    padding: 10,
+    backgroundColor: 'rgba(255, 255, 255, 0.8)',
+    borderRadius: 5,
+  }
 });
 
 export default StreamScreen;

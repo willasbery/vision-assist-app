@@ -1,11 +1,14 @@
 import { NavigationContainer } from '@react-navigation/native';
+import "@/global.css";
+import { GluestackUIProvider } from "@/components/ui/gluestack-ui-provider";
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
-import HomeScreen from './app/HomeScreen';
-import SettingsScreen from './app/SettingsScreen';
-import StreamScreen from './app/StreamScreen';
+import HomeScreen from '@/HomeScreen';
+import SettingsScreen from '@/SettingsScreen';
+import StreamScreen from '@/StreamScreen';
+
 
 const Stack = createNativeStackNavigator();
 
@@ -48,20 +51,20 @@ const screens = [
 
 export default function App() {
   return (
-    <SafeAreaProvider>
-      <NavigationContainer>
-        <Stack.Navigator>
-          {screens.map((screen) => (
-            <Stack.Screen
-              key={screen.name}
-              name={screen.name}
-              component={screen.component}
-              options={screen.options}
-            />
-          ))}
-        </Stack.Navigator>
-      </NavigationContainer>
-      <StatusBar style="light" />
-    </SafeAreaProvider>
+    <GluestackUIProvider mode="light"><SafeAreaProvider>
+        <NavigationContainer>
+          <Stack.Navigator>
+            {screens.map((screen) => (
+              <Stack.Screen
+                key={screen.name}
+                name={screen.name}
+                component={screen.component}
+                options={screen.options}
+              />
+            ))}
+          </Stack.Navigator>
+        </NavigationContainer>
+        <StatusBar style="light" />
+      </SafeAreaProvider></GluestackUIProvider>
   );
 }

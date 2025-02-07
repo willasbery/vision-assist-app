@@ -15,13 +15,15 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Ionicons } from "@expo/vector-icons";
 import { Camera } from "expo-camera";
 
+import WebSocketManager from "@/common/websockets";
+
 
 const HomeScreen = ({ navigation }) => {
   const [status, setStatus] = useState("Disconnected");
   const [lastImage, setLastImage] = useState(null);
   const [serverIP, setServerIP] = useState(null);
   const [loading, setLoading] = useState(false);
-  const ws = useRef(null);
+  const wsManager = useRef(null);
 
   useEffect(() => {
     loadServerIP();
@@ -31,20 +33,31 @@ const HomeScreen = ({ navigation }) => {
 
     return () => {
       unsubscribe();
-      if (ws.current) {
-        ws.current.close();
-      }
+      wsManager.current?.disconnect();
     };
   }, [navigation]);
 
   useEffect(() => {
     if (serverIP) {
-      connectWebSocket();
+      wsManager.current = new WebSocketManager(serverIP, {
+        onStatusChange: setStatus,
+        onMessage: (response) => {
+          if (response.type === "confirmation") {
+            setLastImage(`http://${serverIP}:8000${response.url}`);
+          } else if (response.type === "error") {
+            Alert.alert("Error", response.message);
+          }
+          setLoading(false);
+        },
+        onError: (error) => {
+          Alert.alert("Connection Error", "Failed to connect to server");
+          setLoading(false);
+        }
+      });
+      wsManager.current.connect();
     }
     return () => {
-      if (ws.current) {
-        ws.current.close();
-      }
+      wsManager.current?.disconnect();
     };
   }, [serverIP]);
 
@@ -57,45 +70,6 @@ const HomeScreen = ({ navigation }) => {
     } catch (error) {
       console.error("Error loading server IP:", error);
     }
-  };
-
-  const connectWebSocket = () => {
-    const wsUrl = `ws://${serverIP}:8000/ws`;
-    console.log("Connecting to:", wsUrl);
-    
-    ws.current = new WebSocket(wsUrl);
-
-    ws.current.onopen = () => {
-      console.log("WebSocket Connected");
-      setStatus("Connected");
-    };
-
-    ws.current.onclose = (e) => {
-      console.log("WebSocket Disconnected:", e.code, e.reason);
-      setStatus("Disconnected");
-      setTimeout(connectWebSocket, 3000);
-    };
-
-    ws.current.onmessage = (event) => {
-      try {
-        const response = JSON.parse(event.data);
-        if (response.type === "confirmation") {
-          setLastImage(`http://${serverIP}:8000${response.url}`);
-        } else if (response.type === "error") {
-          Alert.alert("Error", response.message);
-        }
-      } catch (e) {
-        console.log("Received message:", event.data);
-      }
-      setLoading(false);
-    };
-
-    ws.current.onerror = (error) => {
-      console.error("WebSocket error:", error);
-      setStatus("Error");
-      Alert.alert("Connection Error", "Failed to connect to server");
-      setLoading(false);
-    };
   };
 
   const pickImage = async () => {
@@ -153,17 +127,16 @@ const HomeScreen = ({ navigation }) => {
   };
 
   const sendImage = (base64Image) => {
-    if (ws.current?.readyState === WebSocket.OPEN) {
-      const message = {
-        type: "image",
-        data: `data:image/jpeg;base64,${base64Image}`,
-      };
-      ws.current.send(JSON.stringify(message));
-    } else {
+    const success = wsManager.current?.send({
+      type: "image",
+      data: `data:image/jpeg;base64,${base64Image}`,
+    });
+
+    if (!success) {
       Alert.alert("Error", "WebSocket is not connected");
       setStatus("Disconnected - Retrying...");
       setLoading(false);
-      connectWebSocket();
+      wsManager.current?.connect();
     }
   };
 
