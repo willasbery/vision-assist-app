@@ -16,9 +16,12 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Worklets } from "react-native-worklets-core";
 
-import { convertFrameToBase64 } from "@/utils/convertFrameToBase64";
-import { loadServerIP } from "@/common/serverManager";
-import WebSocketManager from "@/common/websockets";
+
+import { convertFrameToBase64 } from "@/src/utils/convertFrameToBase64";
+import { loadServerIP } from "@/src/common/serverManager";
+import WebSocketManager from "@/src/common/websockets";
+import { playAudio, unloadSounds } from "@/src/utils/audioPlayer";
+
 
 const StreamScreen = ({ navigation }) => {
   const [status, setStatus] = useState("Connecting...");
@@ -28,13 +31,13 @@ const StreamScreen = ({ navigation }) => {
   const [response, setResponse] = useState(null);
 
   // Sound effects
-  const continueForward = new Player('continue_forward.wav')
-  const immediatelyTurnLeft = new Player('immediately_turn_left.wav')
-  const immediatelyTurnRight = new Player('immediately_turn_right.wav')
-  const possiblyTurnLeft = new Player('possibly_turn_left.wav')
-  const possiblyTurnRight = new Player('possibly_turn_right.wav')
-  const turnLeft = new Player('turn_left.wav')
-  const turnRight = new Player('turn_right.wav')
+  // const continueForward = new Player('continue_forward.wav')
+  // const immediatelyTurnLeft = new Player('immediately_turn_left.wav')
+  // const immediatelyTurnRight = new Player('immediately_turn_right.wav')
+  // const possiblyTurnLeft = new Player('possibly_turn_left.wav')
+  // const possiblyTurnRight = new Player('possibly_turn_right.wav')
+  // const turnLeft = new Player('turn_left.wav')
+  // const turnRight = new Player('turn_right.wav')
 
   const cameraRef = useRef(null);
   const device = useCameraDevice("back");
@@ -56,8 +59,11 @@ const StreamScreen = ({ navigation }) => {
   };
 
   useEffect(() => {
-    turnRight.play()
+    return () => {
+      unloadSounds();
+    };
   }, []);
+
 
   useEffect(() => {
     loadInitialIP();
@@ -80,11 +86,8 @@ const StreamScreen = ({ navigation }) => {
             const parsedInstructions = JSON.parse(response.data);
             setInstructions(parsedInstructions);
 
-            Tts.stop();
-            parsedInstructions.forEach((instruction, _) => {
-              const text = `${instruction.instruction_type} ${instruction.direction} ${instruction.danger} danger`;
-              Tts.speak(text);
-            });
+            // NOW WE JUST NEED TO PLAY THE AUDIO FOR THE FIRST INSTRUCTION
+            playAudio(parsedInstructions[0].instruction_type);
           } else if (response.type === "error") {
             console.error("Server error:", response.data);
             setResponse(response.data);
@@ -101,8 +104,6 @@ const StreamScreen = ({ navigation }) => {
     };
   }, [serverIP]);
 
-  
-
   const onConversion = Worklets.createRunOnJS((imageAsBase64) => {
     wsManager.current?.send({
       type: "frame",
@@ -114,20 +115,20 @@ const StreamScreen = ({ navigation }) => {
   const frameProcessor = useFrameProcessor((frame) => {
     "worklet";
 
-    runAtTargetFps(2, () => {
-      // const imageAsBase64 = convertFrameToBase64(frame, { 
-      //   width: 640, 
-      //   height: 640 
-      // });
+    // runAtTargetFps(2, () => {
+    //   // const imageAsBase64 = convertFrameToBase64(frame, { 
+    //   //   width: 640, 
+    //   //   height: 640 
+    //   // });
 
-      const imageAsBase64 = convertFrameToBase64(frame);
+    const imageAsBase64 = convertFrameToBase64(frame);
 
-      if (imageAsBase64 === null) {
-        return;
-      }
+    if (imageAsBase64 === null) {
+      return;
+    }
 
-      onConversion(imageAsBase64);
-    });
+    onConversion(imageAsBase64);
+    // });
   }, [onConversion]);
 
   if (!serverIP) {
@@ -168,7 +169,7 @@ const StreamScreen = ({ navigation }) => {
         format={format}
         isActive={true}
         frameProcessor={frameProcessor}
-        fps={30}
+        fps={10}
       />
       {instructions && (
         <Text style={styles.instructions}>

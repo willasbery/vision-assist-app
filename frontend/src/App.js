@@ -4,10 +4,12 @@ import { GluestackUIProvider } from "@/components/ui/gluestack-ui-provider";
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+import React, { useEffect } from 'react';
+import { initialiseSounds, unloadSounds } from '@/src/utils/audioPlayer';
 
-import HomeScreen from '@/HomeScreen';
-import SettingsScreen from '@/SettingsScreen';
-import StreamScreen from '@/StreamScreen';
+import HomeScreen from '@/src/HomeScreen';
+import SettingsScreen from '@/src/SettingsScreen';
+import StreamScreen from '@/src/StreamScreen';
 
 
 const Stack = createNativeStackNavigator();
@@ -50,6 +52,24 @@ const screens = [
 ];
 
 export default function App() {
+  useEffect(() => {
+    // Initialize sounds when component mounts
+    const loadSounds = async () => {
+      try {
+        await initialiseSounds();
+      } catch (error) {
+        console.error('Failed to initialize sounds:', error);
+      }
+    };
+    
+    loadSounds();
+
+    // Cleanup sounds when component unmounts
+    return () => {
+      unloadSounds();
+    };
+  }, []); // Empty dependency array means this runs once on mount
+
   return (
     <GluestackUIProvider mode="light"><SafeAreaProvider>
         <NavigationContainer>

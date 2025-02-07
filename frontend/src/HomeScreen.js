@@ -15,7 +15,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Ionicons } from "@expo/vector-icons";
 import { Camera } from "expo-camera";
 
-import WebSocketManager from "@/common/websockets";
+import WebSocketManager from "@/src/common/websockets";
 
 
 const HomeScreen = ({ navigation }) => {

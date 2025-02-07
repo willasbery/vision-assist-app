@@ -9,7 +9,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-import { loadServerIP, saveServerIP } from "@/common/serverManager";
+import { loadServerIP, saveServerIP } from "@/src/common/serverManager";
 
 const SettingsScreen = ({ navigation }) => {
   const [serverIP, setServerIP] = useState("");
