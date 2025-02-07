@@ -1,5 +1,6 @@
 .venv
 __pycache__
+.pytest_cache
 
 stream_frames
 frames_from_tests
