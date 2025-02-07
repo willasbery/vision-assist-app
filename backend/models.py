@@ -8,30 +8,29 @@ from datetime import datetime
 from fastapi import WebSocket
 from ultralytics import YOLO
 
+from vision_assist.models import Instruction
 from vision_assist.FrameProcessor import FrameProcessor
+
 
 logger = logging.getLogger(__name__)
 coloredlogs.install(level="DEBUG", logger=logger)
 
 
 class VideoProcessor:
-    def __init__(self, weights='.\\vision_assist\\model\\runs\\train11\\weights\\best.pt'):
+    def __init__(self, weights='.\\vision_assist\\model\\runs\\segment\\train11\\weights\\best.pt'):
+        # self.model = YOLO(weights).to("cuda")
         self.model = YOLO(weights)
-        self.frame_processor = FrameProcessor(model=self.model, verbose=False)
+        self.frame_processor = FrameProcessor(model=self.model, verbose=False, debug=True, imshow=False)
         logger.info(f"VideoProcessor initialized with weights: {weights}")
        
-    def process_frame(self, frame):
+    def process_frame(self, frame) -> tuple[np.ndarray, list[Instruction]]:
         try:
             logger.debug("Processing new frame")
-            processed_frame = self.frame_processor(frame)
-            if isinstance(processed_frame, bool) and not processed_frame:
-                logger.warning("Frame processing returned invalid result")
-                return None
-            logger.debug("Frame processed successfully")
-            return processed_frame
+            processed_frame, instructions = self.frame_processor(frame)
+            return processed_frame, instructions
         except Exception as e:
             logger.error(f"Error processing frame: {str(e)}")
-            return None
+            return None, None
 
 class ConnectionManager:
     def __init__(self):
