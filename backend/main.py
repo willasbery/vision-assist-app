@@ -63,9 +63,9 @@ async def websocket_endpoint(websocket: WebSocket):
                         manager.last_frame_time[websocket] = current_time
                         
                         await websocket.send_json({
-                            "type": "processed_frame",
-                            "data": f"data:image/jpeg;base64,{processed_base64}",
-                            "url": f"/frames/{filename}"
+                            "type": "success",
+                            "data": instructions,
+                            "url": f"/stream_frames/{filename}"
                         })
                     else:
                         logger.warning("Frame processing failed")
