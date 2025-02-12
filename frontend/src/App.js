@@ -17,7 +17,7 @@ const Stack = createNativeStackNavigator();
 // Common header options to avoid repetition
 const commonHeaderOptions = {
   headerStyle: {
-    backgroundColor: '#2196F3',
+    backgroundColor: '#3b82f6',
   },
   headerTintColor: '#fff',
   headerBackTitleVisible: false, // Hide back button text on iOS
@@ -29,7 +29,7 @@ const screens = [
     name: 'Home',
     component: HomeScreen,
     options: {
-      title: 'Image Uploader',
+      title: 'Vision Assist',
       ...commonHeaderOptions,
     },
   },
@@ -37,7 +37,7 @@ const screens = [
     name: 'Settings',
     component: SettingsScreen,
     options: {
-      title: 'Connection Settings',
+      title: 'Settings',
       ...commonHeaderOptions,
     },
   },

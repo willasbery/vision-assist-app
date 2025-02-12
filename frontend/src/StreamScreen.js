@@ -1,24 +1,21 @@
-import React, { useState, useEffect, useRef, useMemo } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   Text,
-  TouchableOpacity,
   StyleSheet,
-  Alert,
   View,
 } from "react-native";
 import { 
   Camera, 
-  runAtTargetFps, 
   useCameraDevice, 
   useCameraFormat, 
   useCameraPermission, 
   useFrameProcessor,
-  useCameraDevices
 } from "react-native-vision-camera";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Worklets } from "react-native-worklets-core";
 import { Button, ButtonText } from "@/components/ui/button";
 import { VStack } from "@/components/ui/vstack";
+import ErrorPopup from '@/src/components/ErrorPopup';
 
 import { convertFrameToBase64 } from "@/src/utils/convertFrameToBase64";
 import { loadServerIP } from "@/src/common/serverManager";
@@ -32,6 +29,7 @@ const StreamScreen = ({ navigation }) => {
   const [error, setError] = useState(null);
   const processingRef = useRef(false);
   const wsManager = useRef(null);
+  const [isErrorVisible, setIsErrorVisible] = useState(false);
 
   const cameraRef = useRef(null);
   const device = useCameraDevice("back", {
@@ -104,6 +102,12 @@ const StreamScreen = ({ navigation }) => {
 
     return () => wsManager.current?.disconnect();
   }, [serverIP]);
+
+  useEffect(() => {
+    if (error) {
+      setIsErrorVisible(true);
+    }
+  }, [error]);
 
   const onConversion = Worklets.createRunOnJS((imageAsBase64) => {
     if (!processingRef.current && wsManager.current) {
@@ -201,29 +205,13 @@ const StreamScreen = ({ navigation }) => {
         </View>
       )}
 
-      {error && (
-        <View style={styles.errorContainer}>
-          <Text style={styles.errorText}>{error}</Text>
-          <VStack space="sm" mt="$4">
-            <Button
-              size="md"
-              variant="solid"
-              action="primary"
-              onPress={handleRetry}
-            >
-              <ButtonText>Retry Connection</ButtonText>
-            </Button>
-            <Button
-              size="md"
-              variant="outline"
-              action="secondary"
-              onPress={() => navigation.navigate("Settings")}
-            >
-              <ButtonText>Go to Settings</ButtonText>
-            </Button>
-          </VStack>
-        </View>
-      )}
+      <ErrorPopup
+        isVisible={isErrorVisible}
+        error={error}
+        onRetry={handleRetry}
+        onSettings={() => navigation.navigate("Settings")}
+        onClose={() => setIsErrorVisible(false)}
+      />
     </SafeAreaView>
   );
 };

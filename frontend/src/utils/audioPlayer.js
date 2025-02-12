@@ -1,4 +1,6 @@
 import { Audio } from 'expo-av';
+import { Vibration } from 'react-native';
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 // Sound objects cache
 let sound_paths = {
@@ -27,25 +29,44 @@ export const initialiseSounds = async () => {
   }
 };
 
+// Vibration patterns for different instructions
+const vibrationPatterns = {
+  "continue_forward": [300, 300],
+  "move_left": [300, 200],
+  "move_right": [200, 300],
+};
+
 export const playAudio = async (fileName) => {
   try {
-    if (sounds[fileName]) {
+    // Check settings
+    const [audioEnabled, vibrationEnabled] = await Promise.all([
+      AsyncStorage.getItem("audioEnabled"),
+      AsyncStorage.getItem("vibrationEnabled")
+    ]);
+
+    // Play audio if enabled
+    if (audioEnabled !== "false" && sounds[fileName]) {
       await sounds[fileName].playAsync();
     }
+
+    // Vibrate if enabled
+    if (vibrationEnabled !== "false" && vibrationPatterns[fileName]) {
+      Vibration.vibrate(vibrationPatterns[fileName]);
+    }
   } catch (error) {
-    console.error('Error playing sound:', error);
+    console.error('Error playing feedback:', error);
   }
 };
 
 // Cleanup function to unload sounds when they're no longer needed
 export const unloadSounds = async () => {
-  // try {
-  //   for (const sound of Object.values(sounds)) {
-  //     await sound.unloadAsync();
-  //   }
-  //   sounds = {};
-  // } catch (error) {
-  //   console.error('Error unloading sounds:', error);
-  // }
-  return
+  try {
+    for (const sound of Object.values(sounds)) {
+      await sound.unloadAsync();
+    }
+    sounds = {};
+    Vibration.cancel(); // Cancel any ongoing vibrations
+  } catch (error) {
+    console.error('Error unloading sounds:', error);
+  }
 }; 

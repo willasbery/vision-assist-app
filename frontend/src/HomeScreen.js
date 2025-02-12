@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
 import {
-  View,
   Text,
   Image,
   StyleSheet,
@@ -23,6 +22,7 @@ import { Camera } from "expo-camera";
 
 import WebSocketManager from "@/src/common/websockets";
 import { loadServerIP } from "@/src/common/serverManager";
+import ErrorPopup from '@/src/components/ErrorPopup';
 
 const HomeScreen = ({ navigation }) => {
   const [status, setStatus] = useState("Disconnected");
@@ -30,6 +30,7 @@ const HomeScreen = ({ navigation }) => {
   const [serverIP, setServerIP] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [isErrorVisible, setIsErrorVisible] = useState(false);
   const wsManager = useRef(null);
 
   useEffect(() => {
@@ -88,6 +89,12 @@ const HomeScreen = ({ navigation }) => {
     wsManager.current.connect();
     return () => wsManager.current?.disconnect();
   }, [serverIP]);
+
+  useEffect(() => {
+    if (error) {
+      setIsErrorVisible(true);
+    }
+  }, [error]);
 
   const handleImageSelection = async (useCamera = false) => {
     try {
@@ -164,8 +171,8 @@ const HomeScreen = ({ navigation }) => {
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView contentContainerStyle={styles.scrollContent}>
-        <Box p="$5">
-          <HStack justifyContent="space-between" alignItems="center" mb="$5">
+        <Box className="p-4 gap-y-10">
+          <HStack justifyContent="space-between" alignItems="center" mb="$10">
             <Text
               style={[
                 styles.status,
@@ -179,41 +186,44 @@ const HomeScreen = ({ navigation }) => {
               variant="link"
               onPress={() => navigation.navigate("Settings")}
             >
-              <ButtonIcon as={Ionicons} name="settings-outline" size="xl" />
+              <ButtonIcon as={Ionicons} name="settings-outline" size={24} color="white" />
             </Button>
           </HStack>
 
-          <VStack space="md" mb="$5">
+          <VStack space="xl" mb="$5" p="$5" flexDirection="column" justifyContent="space-between">
             <Button
-              size="lg"
+              className="bg-blue-500 items-center"
+              size="xl"
               variant="solid"
               action="primary"
               onPress={() => handleImageSelection(false)}
               disabled={loading}
             >
-              <ButtonIcon as={Ionicons} name="images-outline" mr="$2" />
+              <ButtonIcon as={Ionicons} name="images-outline" size={16} style={{ marginRight: 10 }} />
               <ButtonText>Pick from Gallery</ButtonText>
             </Button>
 
             <Button
-              size="lg"
+              className="bg-blue-500 items-center"
+              size="xl"
               variant="solid"
               action="primary"
               onPress={() => handleImageSelection(true)}
               disabled={loading}
             >
-              <ButtonIcon as={Ionicons} name="camera-outline" mr="$2" />
+              <ButtonIcon as={Ionicons} name="camera-outline" size={16} style={{ marginRight: 10 }} />
               <ButtonText>Take Picture</ButtonText>
             </Button>
 
             <Button
-              size="lg"
+              className="bg-blue-500 items-center"
+              size="xl"
               variant="solid"
               action="primary"
               onPress={() => navigation.navigate("Stream")}
               disabled={loading}
             >
-              <ButtonIcon as={Ionicons} name="videocam-outline" mr="$2" />
+              <ButtonIcon as={Ionicons} name="videocam-outline" size={16} style={{ marginRight: 10 }} />
               <ButtonText>Stream Video</ButtonText>
             </Button>
           </VStack>
@@ -227,29 +237,13 @@ const HomeScreen = ({ navigation }) => {
             </Center>
           )}
 
-          {error && (
-            <Box my="$5" p="$4" bg="$errorLight100" borderRadius="$lg">
-              <Text style={styles.errorText}>{error}</Text>
-              <VStack space="sm" mt="$4">
-                <Button
-                  size="md"
-                  variant="solid"
-                  action="primary"
-                  onPress={handleRetry}
-                >
-                  <ButtonText>Retry Connection</ButtonText>
-                </Button>
-                <Button
-                  size="md"
-                  variant="outline"
-                  action="secondary"
-                  onPress={() => navigation.navigate("Settings")}
-                >
-                  <ButtonText>Go to Settings</ButtonText>
-                </Button>
-              </VStack>
-            </Box>
-          )}
+          <ErrorPopup
+            isVisible={isErrorVisible}
+            error={error}
+            onRetry={handleRetry}
+            onSettings={() => navigation.navigate("Settings")}
+            onClose={() => setIsErrorVisible(false)}
+          />
 
           {lastImage && (
             <Box mt="$5" alignItems="center">
