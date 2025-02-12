@@ -1,9 +1,10 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
 import {
   Text,
   TouchableOpacity,
   StyleSheet,
   Alert,
+  View,
 } from "react-native";
 import { 
   Camera, 
@@ -11,136 +12,141 @@ import {
   useCameraDevice, 
   useCameraFormat, 
   useCameraPermission, 
-  useFrameProcessor 
+  useFrameProcessor,
+  useCameraDevices
 } from "react-native-vision-camera";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Worklets } from "react-native-worklets-core";
-
+import { Button, ButtonText } from "@/components/ui/button";
+import { VStack } from "@/components/ui/vstack";
 
 import { convertFrameToBase64 } from "@/src/utils/convertFrameToBase64";
 import { loadServerIP } from "@/src/common/serverManager";
 import WebSocketManager from "@/src/common/websockets";
 import { playAudio, unloadSounds } from "@/src/utils/audioPlayer";
 
-
 const StreamScreen = ({ navigation }) => {
-  const [status, setStatus] = useState("Connecting...");
+  const [status, setStatus] = useState("Initializing...");
   const [serverIP, setServerIP] = useState(null);
-
   const [instructions, setInstructions] = useState(null);
-  const [response, setResponse] = useState(null);
-
-  // Sound effects
-  // const continueForward = new Player('continue_forward.wav')
-  // const immediatelyTurnLeft = new Player('immediately_turn_left.wav')
-  // const immediatelyTurnRight = new Player('immediately_turn_right.wav')
-  // const possiblyTurnLeft = new Player('possibly_turn_left.wav')
-  // const possiblyTurnRight = new Player('possibly_turn_right.wav')
-  // const turnLeft = new Player('turn_left.wav')
-  // const turnRight = new Player('turn_right.wav')
+  const [error, setError] = useState(null);
+  const processingRef = useRef(false);
+  const wsManager = useRef(null);
 
   const cameraRef = useRef(null);
-  const device = useCameraDevice("back");
+  const device = useCameraDevice("back", {
+    physicalDevices: [
+      "ultra-wide-angle-camera",
+      "wide-angle-camera"
+    ]
+  });
+
   const format = useCameraFormat(device, [
     { videoResolution: { width: 1280, height: 720 } },
     { photoResolution: { width: 1280, height: 720 } },
     { fps: 30 },
-  ])
+  ]);
   const { hasPermission, requestPermission } = useCameraPermission();
-  // const { resize } = useResizePlugin();
-
-  const wsManager = useRef(null);
 
   const loadInitialIP = async () => {
     const ip = await loadServerIP();
     if (ip) {
       setServerIP(ip);
+      setError(null);
     }
   };
 
   useEffect(() => {
+    loadInitialIP();
     return () => {
       unloadSounds();
+      wsManager.current?.disconnect();
     };
   }, []);
 
-
   useEffect(() => {
-    loadInitialIP();
-    const unsubscribe = navigation.addListener("focus", () => {
-      loadInitialIP();
-    });
-    return () => {
-      unsubscribe();
-      wsManager.current?.disconnect();
-    };
+    const unsubscribe = navigation.addListener("focus", loadInitialIP);
+    return unsubscribe;
   }, [navigation]);
 
   useEffect(() => {
-    if (serverIP) {
-      wsManager.current = new WebSocketManager(serverIP, {
-        onStatusChange: setStatus,
-        onMessage: (response) => {
-          console.log('Server response:', response);
-          if (response.type === "success") {
-            const parsedInstructions = JSON.parse(response.data);
-            setInstructions(parsedInstructions);
-
-            // NOW WE JUST NEED TO PLAY THE AUDIO FOR THE FIRST INSTRUCTION
-            playAudio(parsedInstructions[0].instruction_type);
-          } else if (response.type === "error") {
-            console.error("Server error:", response.data);
-            setResponse(response.data);
-          }
-        },
-        onError: (error) => {
-          Alert.alert("Connection Error", "Failed to connect to server");
-        }
-      });
-      wsManager.current.connect();
+    if (!serverIP) {
+      setStatus("No server IP configured");
+      return;
     }
-    return () => {
-      wsManager.current?.disconnect();
-    };
+
+    wsManager.current = new WebSocketManager(serverIP, {
+      onStatusChange: (newStatus) => {
+        setStatus(newStatus);
+        if (newStatus === "Connected") {
+          setError(null);
+        }
+      },
+      onMessage: (response) => {
+        if (response.type === "success") {
+          if (response.data.length > 0) {
+            console.log('Playing audio:', response.data);
+            playAudio(response.data);
+          }
+        } else if (response.type === "error") {
+          console.error("Server error:", response.data);
+          setError(response.data);
+        }
+        processingRef.current = false;
+      },
+      onError: (error) => {
+        setError("Connection failed. Please check your settings or retry.");
+      },
+      maxReconnectAttempts: 3,
+    });
+    
+    wsManager.current.connect();
+
+    return () => wsManager.current?.disconnect();
   }, [serverIP]);
 
   const onConversion = Worklets.createRunOnJS((imageAsBase64) => {
-    wsManager.current?.send({
-      type: "frame",
-      data: `data:image/jpeg;base64,${imageAsBase64}`,
-      timestamp: Date.now(),
-    });
+    if (!processingRef.current && wsManager.current) {
+      processingRef.current = true;
+      const success = wsManager.current.send({
+        type: "frame",
+        data: `data:image/jpeg;base64,${imageAsBase64}`,
+        timestamp: Date.now(),
+      });
+      
+      if (!success) {
+        processingRef.current = false;
+      }
+    }
   });
 
   const frameProcessor = useFrameProcessor((frame) => {
     "worklet";
-
-    // runAtTargetFps(2, () => {
-    //   // const imageAsBase64 = convertFrameToBase64(frame, { 
-    //   //   width: 640, 
-    //   //   height: 640 
-    //   // });
-
     const imageAsBase64 = convertFrameToBase64(frame);
-
-    if (imageAsBase64 === null) {
-      return;
+    if (imageAsBase64) {
+      onConversion(imageAsBase64);
     }
-
-    onConversion(imageAsBase64);
-    // });
   }, [onConversion]);
+
+  const handleRetry = () => {
+    setError(null);
+    wsManager.current?.retry();
+  };
 
   if (!serverIP) {
     return (
       <SafeAreaView style={styles.container}>
-        <Text>Please configure server IP in settings</Text>
-        <TouchableOpacity
-          style={styles.button}
-          onPress={() => navigation.navigate("Settings")}
-        >
-          <Text style={styles.buttonText}>Go to Settings</Text>
-        </TouchableOpacity>
+        <VStack space="md" alignItems="center">
+          <Text style={styles.message}>Please configure server IP in settings</Text>
+          <Button
+            size="lg"
+            variant="solid"
+            action="primary"
+            onPress={() => navigation.navigate("Settings")}
+          >
+            <ButtonText>Go to Settings</ButtonText>
+          </Button>
+        </VStack>
       </SafeAreaView>
     );
   }
@@ -148,37 +154,76 @@ const StreamScreen = ({ navigation }) => {
   if (!hasPermission) {
     return (
       <SafeAreaView style={styles.container}>
-        <Text>Camera permissions required</Text>
-        <TouchableOpacity
-          style={styles.button}
-          onPress={requestPermission}
-        >
-          <Text style={styles.buttonText}>Grant Permission</Text>
-        </TouchableOpacity>
+        <VStack space="md" alignItems="center">
+          <Text style={styles.message}>Camera permissions required</Text>
+          <Button
+            size="lg"
+            variant="solid"
+            action="primary"
+            onPress={requestPermission}
+          >
+            <ButtonText>Grant Permission</ButtonText>
+          </Button>
+        </VStack>
       </SafeAreaView>
     );
   }
 
   return (
     <SafeAreaView style={styles.container}>
-      <Text style={styles.status}>{status}</Text>
+      {/* <Text style={[
+        styles.status,
+        status === "Connected" && styles.statusConnected,
+        status.includes("Error") && styles.statusError
+      ]}>
+        {status}
+      </Text> */}
+      
       <Camera
         ref={cameraRef}
         style={StyleSheet.absoluteFill}
         device={device}
         format={format}
-        isActive={true}
+        isActive={!error}
         frameProcessor={frameProcessor}
-        // fps={10}
+        enableZoomGesture={true}
+        onError={(error) => console.error("Camera error:", error)}
+        androidPreviewViewType="surface-view"
       />
+
       {instructions && (
-        <Text style={styles.instructions}>
-          {instructions.map((instruction, index) => (
-            `${index + 1}. ${instruction.instruction_type}: ${instruction.direction} (${instruction.danger} danger)\n`
-          ))}
-        </Text>
+        <View style={styles.instructionsContainer}>
+          <Text style={styles.instructions}>
+            {instructions.map((instruction, index) => (
+              `${index + 1}. ${instruction.instruction_type}: ${instruction.direction} (${instruction.danger} danger)\n`
+            ))}
+          </Text>
+        </View>
       )}
-      {response && <Text style={styles.error}>{response}</Text>}
+
+      {error && (
+        <View style={styles.errorContainer}>
+          <Text style={styles.errorText}>{error}</Text>
+          <VStack space="sm" mt="$4">
+            <Button
+              size="md"
+              variant="solid"
+              action="primary"
+              onPress={handleRetry}
+            >
+              <ButtonText>Retry Connection</ButtonText>
+            </Button>
+            <Button
+              size="md"
+              variant="outline"
+              action="secondary"
+              onPress={() => navigation.navigate("Settings")}
+            >
+              <ButtonText>Go to Settings</ButtonText>
+            </Button>
+          </VStack>
+        </View>
+      )}
     </SafeAreaView>
   );
 };
@@ -190,41 +235,54 @@ const styles = StyleSheet.create({
     alignItems: "center",
     backgroundColor: "#fff",
   },
-  button: {
-    marginTop: 20,
-    padding: 15,
-    backgroundColor: "#2196F3",
-    borderRadius: 10,
-    minWidth: 200,
-    alignItems: "center",
-  },
-  buttonText: {
-    color: "#fff",
+  message: {
     fontSize: 16,
-    fontWeight: "600",
+    textAlign: "center",
+    marginBottom: 20,
   },
   status: {
     fontSize: 18,
     fontWeight: "bold",
     marginBottom: 20,
+    zIndex: 1,
   },
-  instructions: {
+  statusConnected: {
+    color: "#4CAF50",
+  },
+  statusError: {
+    color: "#f44336",
+  },
+  instructionsContainer: {
     position: 'absolute',
     top: 100,
     left: 20,
     right: 20,
-    backgroundColor: 'rgba(255, 255, 255, 0.8)',
-    padding: 10,
-    borderRadius: 5,
+    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+    padding: 15,
+    borderRadius: 10,
+    elevation: 3,
   },
-  error: {
-    color: 'red',
+  instructions: {
+    fontSize: 14,
+    lineHeight: 20,
+  },
+  errorContainer: {
     position: 'absolute',
-    bottom: 20,
-    padding: 10,
-    backgroundColor: 'rgba(255, 255, 255, 0.8)',
-    borderRadius: 5,
-  }
+    top: '50%',
+    left: 20,
+    right: 20,
+    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+    padding: 20,
+    borderRadius: 10,
+    elevation: 5,
+    alignItems: 'center',
+  },
+  errorText: {
+    color: '#f44336',
+    fontSize: 16,
+    textAlign: 'center',
+    marginBottom: 10,
+  },
 });
 
 export default StreamScreen;
