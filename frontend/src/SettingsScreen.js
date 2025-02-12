@@ -8,14 +8,14 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import {
   Button,
   ButtonText
-} from "@/components/ui/button";
-import { Box } from "@/components/ui/box";
-import { VStack } from "@/components/ui/vstack";
-import { HStack } from "@/components/ui/hstack";
-import { Input, InputField } from "@/components/ui/input";
-import { Text } from "@/components/ui/text";
-import { Switch } from "@/components/ui/switch";
-import { FormControl, FormControlHelper, FormControlLabel } from "@/components/ui/form-control";
+} from "@/src/components/ui/button";
+import { Box } from "@/src/components/ui/box";
+import { VStack } from "@/src/components/ui/vstack";
+import { HStack } from "@/src/components/ui/hstack";
+import { Input, InputField } from "@/src/components/ui/input";
+import { Text } from "@/src/components/ui/text";
+import { Switch } from "@/src/components/ui/switch";
+import { FormControl, FormControlHelper, FormControlLabel } from "@/src/components/ui/form-control";
 import ErrorPopup from '@/src/components/ErrorPopup';
 
 import { loadServerIP, saveServerIP } from "@/src/common/serverManager";

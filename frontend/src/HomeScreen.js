@@ -5,16 +5,16 @@ import {
   StyleSheet,
   ScrollView,
 } from "react-native";
-import { Center } from "@/components/ui/center"
+import { Center } from "@/src/components/ui/center"
 import {
   Button,
   ButtonText,
   ButtonIcon
-} from "@/components/ui/button";
-import { Box } from "@/components/ui/box";
-import { VStack } from "@/components/ui/vstack";
-import { HStack } from "@/components/ui/hstack";
-import { Spinner } from "@/components/ui/spinner";
+} from "@/src/components/ui/button";
+import { Box } from "@/src/components/ui/box";
+import { VStack } from "@/src/components/ui/vstack";
+import { HStack } from "@/src/components/ui/hstack";
+import { Spinner } from "@/src/components/ui/spinner";
 import { SafeAreaView } from "react-native-safe-area-context";
 import * as ImagePicker from "expo-image-picker";
 import { Ionicons } from "@expo/vector-icons";

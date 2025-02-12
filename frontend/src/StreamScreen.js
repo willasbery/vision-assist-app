@@ -13,8 +13,8 @@ import {
 } from "react-native-vision-camera";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Worklets } from "react-native-worklets-core";
-import { Button, ButtonText } from "@/components/ui/button";
-import { VStack } from "@/components/ui/vstack";
+import { Button, ButtonText } from "@/src/components/ui/button";
+import { VStack } from "@/src/components/ui/vstack";
 import ErrorPopup from '@/src/components/ErrorPopup';
 
 import { convertFrameToBase64 } from "@/src/utils/convertFrameToBase64";

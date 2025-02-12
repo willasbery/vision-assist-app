@@ -5,6 +5,6 @@
   },
   "app": {
     "entry": "src/App.js",
-    "components": "components/ui"
+    "components": "src/components/ui"
   }
 }

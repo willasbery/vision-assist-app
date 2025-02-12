@@ -1,9 +1,9 @@
 import React from 'react';
-import { Modal, ModalContent, ModalBody } from '@/components/ui/modal';
-import { Button, ButtonText } from '@/components/ui/button';
-import { Text } from '@/components/ui/text';
-import { VStack } from '@/components/ui/vstack';
-import { Box } from '@/components/ui/box';
+import { Modal, ModalContent, ModalBody } from '@/src/components/ui/modal';
+import { Button, ButtonText } from '@/src/components/ui/button';
+import { Text } from '@/src/components/ui/text';
+import { VStack } from '@/src/components/ui/vstack';
+import { Box } from '@/src/components/ui/box';
 
 const ErrorPopup = ({ isVisible, error, onRetry, onSettings, onClose }) => {
   return (
