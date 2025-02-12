@@ -44,11 +44,11 @@ async def websocket_endpoint(websocket: WebSocket):
                     
                     logger.info("Processing frame...")
                     start_time = datetime.now() 
-                    processed_frame, instructions = manager.video_processor.process_frame(frame)
+                    processed_frame, instruction = manager.video_processor.process_frame(frame)
                     end_time = datetime.now()
                     logger.info(f"Frame processed in {(end_time - start_time).total_seconds():.3f} seconds")
                     
-                    if instructions is not None:
+                    if instruction is not None:
                         processed_base64 = manager.frame_to_base64(processed_frame)
                         
                         frame_number = manager.frame_counters[websocket]
@@ -64,7 +64,7 @@ async def websocket_endpoint(websocket: WebSocket):
                         
                         await websocket.send_json({
                             "type": "success",
-                            "data": instructions,
+                            "data": instruction,
                             "url": f"/stream_frames/{filename}"
                         })
                     else:
