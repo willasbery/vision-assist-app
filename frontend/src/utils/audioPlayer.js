@@ -3,12 +3,12 @@ import { Audio } from 'expo-av';
 // Sound objects cache
 let sound_paths = {
   "continue_forward": require("../../assets/audio/continue_forward.mp3"),
-  "immediately_turn_left": require("../../assets/audio/immediately_turn_left.wav"),
-  "immediately_turn_right": require("../../assets/audio/immediately_turn_right.wav"),
-  "possible_left_turn": require("../../assets/audio/possible_left_turn.wav"),
-  "possible_right_turn": require("../../assets/audio/possible_right_turn.wav"),
-  "turn_left": require("../../assets/audio/turn_left.wav"),
-  "turn_right": require("../../assets/audio/turn_right.wav"),
+  "immediately_turn_left": require("../../assets/audio/immediately_turn_left.mp3"),
+  "immediately_turn_right": require("../../assets/audio/immediately_turn_right.mp3"),
+  "possible_left_turn": require("../../assets/audio/possible_left_turn.mp3"),
+  "possible_right_turn": require("../../assets/audio/possible_right_turn.mp3"),
+  "turn_left": require("../../assets/audio/turn_left.mp3"),
+  "turn_right": require("../../assets/audio/turn_right.mp3"),
 };
 
 let sounds = {};
