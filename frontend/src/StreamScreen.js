@@ -169,7 +169,7 @@ const StreamScreen = ({ navigation }) => {
         format={format}
         isActive={true}
         frameProcessor={frameProcessor}
-        fps={10}
+        // fps={10}
       />
       {instructions && (
         <Text style={styles.instructions}>

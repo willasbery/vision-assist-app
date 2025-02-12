@@ -9,6 +9,17 @@ import {
   ScrollView,
   ActivityIndicator,
 } from "react-native";
+import { Center } from "@/components/ui/center"
+import {
+  Button,
+  ButtonText,
+  ButtonIcon
+} from "@/components/ui/button";
+import { Box } from "@/components/ui/box";
+import { VStack } from "@/components/ui/vstack";
+import { HStack } from "@/components/ui/hstack";
+
+import { Spinner } from "@/components/ui/spinner";
 import { SafeAreaView } from "react-native-safe-area-context";
 import * as ImagePicker from "expo-image-picker";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -142,138 +153,113 @@ const HomeScreen = ({ navigation }) => {
 
   if (!serverIP) {
     return (
-      <SafeAreaView style={styles.container}>
-        <Text>Please configure server IP in settings</Text>
-        <TouchableOpacity
-          style={styles.button}
-          onPress={() => navigation.navigate("Settings")}
-        >
-          <Text style={styles.buttonText}>Go to Settings</Text>
-        </TouchableOpacity>
+      <SafeAreaView style={{ flex: 1 }}>
+        <Center flex={1}>
+          <Text size="lg">Please configure server IP in settings</Text>
+          <Button
+            size="lg"
+            variant="solid"
+            action="primary"
+            mt="$4"
+            onPress={() => navigation.navigate("Settings")}
+          >
+            <ButtonText>Go to Settings</ButtonText>
+          </Button>
+        </Center>
       </SafeAreaView>
     );
   }
 
   return (
-    <SafeAreaView style={styles.container}>
-      <ScrollView contentContainerStyle={styles.scrollContent}>
-        <View style={styles.header}>
-          <Text style={[
-            styles.status,
-            { color: status === "Connected" ? "green" : status === "Error" ? "red" : "orange" }
-          ]}>
-            Status: {status}
-          </Text>
-          <TouchableOpacity
-            style={styles.settingsButton}
-            onPress={() => navigation.navigate("Settings")}
-          >
-            <Ionicons name="settings-outline" size={24} color="#2196F3" />
-          </TouchableOpacity>
-        </View>
+    <SafeAreaView style={{ flex: 1 }}>
+      <ScrollView contentContainerStyle={{ flexGrow: 1 }}>
+        <Box p="$5">
+          <HStack justifyContent="space-between" alignItems="center" mb="$5">
+            <Text
+              size="lg"
+              fontWeight="$bold"
+              color={
+                status === "Connected"
+                  ? "$success700"
+                  : status === "Error"
+                  ? "$error700"
+                  : "$warning700"
+              }
+            >
+              Status: {status}
+            </Text>
+            <Button
+              variant="link"
+              onPress={() => navigation.navigate("Settings")}
+            >
+              <ButtonIcon as={Ionicons} name="settings-outline" size="xl" />
+            </Button>
+          </HStack>
 
-        <View style={styles.buttonContainer}>
-          <TouchableOpacity
-            style={styles.button}
-            onPress={pickImage}
-            disabled={loading}
-          >
-            <Ionicons name="images-outline" size={24} color="white" />
-            <Text style={styles.buttonText}>Pick from Gallery</Text>
-          </TouchableOpacity>
+          <VStack space="md" mb="$5">
+            <Button
+              size="lg"
+              variant="solid"
+              action="primary"
+              onPress={pickImage}
+              disabled={loading}
+            >
+              <ButtonIcon as={Ionicons} name="images-outline" mr="$2" />
+              <ButtonText>Pick from Gallery</ButtonText>
+            </Button>
 
-          <TouchableOpacity
-            style={styles.button}
-            onPress={takePicture}
-            disabled={loading}
-          >
-            <Ionicons name="camera-outline" size={24} color="white" />
-            <Text style={styles.buttonText}>Take Picture</Text>
-          </TouchableOpacity>
+            <Button
+              size="lg"
+              variant="solid"
+              action="primary"
+              onPress={takePicture}
+              disabled={loading}
+            >
+              <ButtonIcon as={Ionicons} name="camera-outline" mr="$2" />
+              <ButtonText>Take Picture</ButtonText>
+            </Button>
 
-          <TouchableOpacity
-            style={styles.button}
-            onPress={() => navigation.navigate("Stream")}
-            disabled={loading}
-          >
-            <Ionicons name="videocam-outline" size={24} color="white" />
-            <Text style={styles.buttonText}>Stream Video</Text>
-          </TouchableOpacity>
-        </View>
+            <Button
+              size="lg"
+              variant="solid"
+              action="primary"
+              onPress={() => navigation.navigate("Stream")}
+              disabled={loading}
+            >
+              <ButtonIcon as={Ionicons} name="videocam-outline" mr="$2" />
+              <ButtonText>Stream Video</ButtonText>
+            </Button>
+          </VStack>
 
-        {loading && (
-          <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color="#2196F3" />
-            <Text style={styles.loadingText}>Sending image...</Text>
-          </View>
-        )}
+          {loading && (
+            <Center my="$5">
+              <Spinner size="large" />
+              <Text size="md" mt="$2">
+                Sending image...
+              </Text>
+            </Center>
+          )}
 
-        {lastImage && (
-          <View style={styles.previewContainer}>
-            <Text style={styles.previewText}>Last Sent Image:</Text>
-            <Image
-              source={{ uri: lastImage }}
-              style={styles.preview}
-              resizeMode="contain"
-            />
-          </View>
-        )}
+          {lastImage && (
+            <Box mt="$5" alignItems="center">
+              <Text size="lg" mb="$2">
+                Last Sent Image:
+              </Text>
+              <Image
+                source={{ uri: lastImage }}
+                alt="Last sent image"
+                w="$full"
+                h={300}
+                borderRadius="$lg"
+                bg="$backgroundLight200"
+                resizeMode="contain"
+              />
+            </Box>
+          )}
+        </Box>
       </ScrollView>
     </SafeAreaView>
   );
 };
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#fff",
-  },
-  scrollContent: {
-    flexGrow: 1,
-    padding: 20,
-  },
-  header: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 20,
-  },
-  status: {
-    fontSize: 18,
-    fontWeight: "bold",
-  },
-  buttonContainer: {
-    gap: 15,
-    marginBottom: 20,
-  },
-  button: {
-    backgroundColor: "#2196F3",
-    padding: 15,
-    borderRadius: 10,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 10,
-  },
-  buttonText: {
-    color: "white",
-    fontSize: 16,
-    fontWeight: "600",
-  },
-  loadingContainer: {
-    alignItems: "center",
-    marginVertical: 20,
-  },
-  previewContainer: {
-    marginTop: 20,
-    alignItems: "center",
-  },
-  preview: {
-    width: "100%",
-    height: 300,
-    borderRadius: 10,
-    backgroundColor: "#f0f0f0",
-  }
-});
 
 export default HomeScreen;

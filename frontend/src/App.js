@@ -71,7 +71,8 @@ export default function App() {
   }, []); // Empty dependency array means this runs once on mount
 
   return (
-    <GluestackUIProvider mode="light"><SafeAreaProvider>
+    <GluestackUIProvider mode="light">
+      <SafeAreaProvider>
         <NavigationContainer>
           <Stack.Navigator>
             {screens.map((screen) => (
@@ -85,6 +86,7 @@ export default function App() {
           </Stack.Navigator>
         </NavigationContainer>
         <StatusBar style="light" />
-      </SafeAreaProvider></GluestackUIProvider>
+      </SafeAreaProvider>
+    </GluestackUIProvider>
   );
 }
