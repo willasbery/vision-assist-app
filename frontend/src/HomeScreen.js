@@ -13,7 +13,6 @@ import {
 } from "@/src/components/ui/button";
 import { Box } from "@/src/components/ui/box";
 import { VStack } from "@/src/components/ui/vstack";
-import { HStack } from "@/src/components/ui/hstack";
 import { Spinner } from "@/src/components/ui/spinner";
 import { SafeAreaView } from "react-native-safe-area-context";
 import * as ImagePicker from "expo-image-picker";
@@ -153,7 +152,8 @@ const HomeScreen = ({ navigation }) => {
             alignItems="center" 
           >
             <Text
-              className="text-4xl font-bold"
+              className="text-5xl font-semibold text-blue-500"
+              style={{ fontFamily: 'Geist-SemiBold' }}
             >
               Vision Assist
             </Text>
@@ -161,21 +161,12 @@ const HomeScreen = ({ navigation }) => {
               style={[
                 styles.status,
                 status === "Connected" && styles.statusConnected,
-                status.includes("Error") && styles.statusError
+                status.includes("Error") && styles.statusError,
+                { fontFamily: 'Geist-Regular' }
               ]}
             >
               Status: {status}
             </Text>
-            {/* <Button
-              size="lg"
-              variant="solid"
-              action="primary"
-              className="bg-blue-500"
-              onPress={() => navigation.navigate("Settings")}
-              leftIcon={<Ionicons name="settings-outline" size={24} color="white" />}
-            >
-              <ButtonText>Settings</ButtonText>
-            </Button> */}
           </VStack>
 
           <VStack space="xl" mb="$5" p="$5" flexDirection="column" justifyContent="space-between">
@@ -188,7 +179,7 @@ const HomeScreen = ({ navigation }) => {
               disabled={loading}
             >
               <ButtonIcon as={Ionicons} name="images-outline" size={16} style={{ marginRight: 10 }} />
-              <ButtonText>Pick from Gallery</ButtonText>
+              <ButtonText style={{ fontFamily: 'Geist-Regular' }}>Pick from Gallery</ButtonText>
             </Button>
 
             <Button
@@ -200,7 +191,7 @@ const HomeScreen = ({ navigation }) => {
               disabled={loading}
             >
               <ButtonIcon as={Ionicons} name="camera-outline" size={16} style={{ marginRight: 10 }} />
-              <ButtonText>Take Picture</ButtonText>
+              <ButtonText style={{ fontFamily: 'Geist-Regular' }}>Take Picture</ButtonText>
             </Button>
 
             <Button
@@ -212,7 +203,7 @@ const HomeScreen = ({ navigation }) => {
               disabled={loading}
             >
               <ButtonIcon as={Ionicons} name="videocam-outline" size={16} style={{ marginRight: 10 }} />
-              <ButtonText>Stream Video</ButtonText>
+              <ButtonText style={{ fontFamily: 'Geist-Regular' }}>Stream Video</ButtonText>
             </Button>
           </VStack>
 
@@ -263,10 +254,12 @@ const styles = StyleSheet.create({
     fontSize: 16,
     textAlign: "center",
     color: "#666",
+    fontFamily: 'Geist-Regular',
   },
   status: {
     fontSize: 16,
     fontWeight: "bold",
+    fontFamily: 'Geist-Regular',
   },
   statusConnected: {
     color: "#4CAF50",
@@ -278,6 +271,7 @@ const styles = StyleSheet.create({
     color: "#f44336",
     fontSize: 16,
     textAlign: "center",
+    fontFamily: 'Geist-Regular',
   },
   image: {
     width: "100%",

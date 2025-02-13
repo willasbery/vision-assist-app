@@ -49,7 +49,26 @@
         }
       ],
       "expo-audio",
-      "expo-asset"
+      "expo-asset",
+      "expo-font"
+    ],
+    "fonts": [
+      {
+        "asset": "./src/assets/fonts/Geist-Regular.otf",
+        "family": "Geist"
+      },
+      {
+        "asset": "./src/assets/fonts/Geist-Medium.otf",
+        "family": "Geist-Medium"
+      },
+      {
+        "asset": "./src/assets/fonts/Geist-SemiBold.otf",
+        "family": "Geist-SemiBold"
+      },
+      {
+        "asset": "./src/assets/fonts/Geist-Bold.otf",
+        "family": "Geist-Bold"
+      }
     ]
   }
 }

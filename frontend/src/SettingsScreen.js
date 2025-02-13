@@ -19,6 +19,7 @@ import { FormControl, FormControlHelper, FormControlLabel } from "@/src/componen
 import ErrorPopup from '@/src/components/ErrorPopup';
 
 import { loadServerIP, saveServerIP } from "@/src/common/serverManager";
+import { CustomText } from "./components/CustomText";
 
 const SettingsScreen = ({ navigation }) => {
   const [serverIP, setServerIP] = useState("");
@@ -87,9 +88,10 @@ const SettingsScreen = ({ navigation }) => {
       <ScrollView contentContainerStyle={styles.scrollContent}>
         <Box className="h-full justify-between p-6 gap-y-10" justifyContent="space-between">
           <VStack space="3xl">
+            <CustomText heading size="4xl" color="$textDark900">Settings</CustomText>
             <FormControl isRequired>
               <FormControlLabel>
-                <Text size="lg" color="$textDark900">Server IP Address</Text>
+                <CustomText heading size="lg" color="$textDark900">Server IP Address</CustomText>
               </FormControlLabel>
               <Input
                 size="lg"
@@ -102,18 +104,19 @@ const SettingsScreen = ({ navigation }) => {
                   placeholder="Enter server IP (e.g., 192.168.1.100)"
                   keyboardType="numeric"
                   autoCapitalize="none"
+                  style={{ fontFamily: 'Geist-Regular' }}
                 />
               </Input>
               <FormControlHelper>
-                <Text size="sm" color="$textDark500">Enter the IP address of your server</Text>
+                <CustomText regular size="sm" color="$textDark500">Enter the IP address of your server</CustomText>
               </FormControlHelper>
             </FormControl>
 
             <VStack space="4xl" mt="$5">
               <HStack space="md" alignItems="center" justifyContent="space-between">
                 <VStack>
-                  <Text size="lg" color="$textDark900">Audio Feedback</Text>
-                  <Text size="sm" color="$textDark500">Enable voice instructions</Text>
+                  <CustomText heading size="lg" color="$textDark900">Audio Feedback</CustomText>
+                  <CustomText medium size="sm" color="$textDark500">Enable voice instructions</CustomText>
                 </VStack>
                 <Switch
                   size="lg"
@@ -126,8 +129,8 @@ const SettingsScreen = ({ navigation }) => {
 
               <HStack space="md" alignItems="center" justifyContent="space-between">
                 <VStack>
-                  <Text size="lg" color="$textDark900">Vibration Feedback</Text>
-                  <Text size="sm" color="$textDark500">Enable haptic feedback</Text>
+                  <CustomText heading size="lg" color="$textDark900">Vibration Feedback</CustomText>
+                  <CustomText medium size="sm" color="$textDark500">Enable haptic feedback</CustomText>
                 </VStack>
                 <Switch
                   size="lg"
@@ -145,6 +148,7 @@ const SettingsScreen = ({ navigation }) => {
                 color="$error700"
                 textAlign="center"
                 mt="$4"
+                style={{ fontFamily: 'GeistRegular' }}
               >
                 {error}
               </Text>
@@ -152,14 +156,14 @@ const SettingsScreen = ({ navigation }) => {
           </VStack>
           <Button
             className="mt-6 bg-blue-500"
-            size="lg"
+            size="xl"
             variant="solid"
             action="primary"
             mt="$6"
             onPress={handleSaveSettings}
             isDisabled={isSaving}
           >
-            <ButtonText>{isSaving ? "Saving..." : "Save Settings"}</ButtonText>
+            <ButtonText style={{ fontFamily: 'Geist-SemiBold' }}>{isSaving ? "Saving..." : "Save Settings"}</ButtonText>
           </Button>
         </Box>
       </ScrollView>

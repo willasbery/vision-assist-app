@@ -15,6 +15,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { Worklets } from "react-native-worklets-core";
 import { Button, ButtonText } from "@/src/components/ui/button";
 import { VStack } from "@/src/components/ui/vstack";
+import { Accelerometer } from 'expo-sensors';
 
 import ErrorPopup from '@/src/components/ErrorPopup';
 import NoServerIP from '@/src/components/NoServerIP';
@@ -28,6 +29,7 @@ const StreamScreen = ({ navigation }) => {
   const [isErrorVisible, setIsErrorVisible] = useState(false);
   const processingRef = useRef(false);
   const cameraRef = useRef(null);
+  const mountedAtRef = useRef(0);
 
   const { serverIP, error: ipError } = useServerIP(navigation);
   const { status, error: wsError, retry, send } = useWebSocket(serverIP, {
@@ -56,6 +58,43 @@ const StreamScreen = ({ navigation }) => {
       unloadSounds();
     };
   }, []);
+
+  useEffect(() => {
+    mountedAtRef.current = Date.now();
+  }, []);
+
+  useEffect(() => {
+    let lastUpdate = 0;
+    let lastX = 0;
+    let lastY = 0;
+    let lastZ = 0;
+    const shakeThreshold = 200;
+
+    const subscription = Accelerometer.addListener(accelerometerData => {
+      if (Date.now() - mountedAtRef.current < 3000) return;
+
+      const { x, y, z } = accelerometerData;
+      const currentTime = Date.now();
+
+      if ((currentTime - lastUpdate) > 100) {
+        const diffTime = currentTime - lastUpdate;
+        lastUpdate = currentTime;
+
+        const speed = Math.abs(x + y + z - lastX - lastY - lastZ) / diffTime * 10000;
+
+        if (speed > shakeThreshold) {
+          navigation.navigate("TabNavigator", { screen: "Home" });
+        }
+
+        lastX = x;
+        lastY = y;
+        lastZ = z;
+      }
+    });
+
+    Accelerometer.setUpdateInterval(100);
+    return () => subscription.remove();
+  }, [navigation]);
 
   const device = useCameraDevice("back", {
     physicalDevices: [
@@ -163,6 +202,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     textAlign: "center",
     marginBottom: 20,
+    fontFamily: 'Geist-Regular',
   },
   status: {
     fontSize: 18,

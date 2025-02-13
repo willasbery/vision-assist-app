@@ -8,6 +8,10 @@ import React, { useEffect } from 'react';
 import { initialiseSounds, unloadSounds } from '@/src/utils/audioPlayer';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from "@expo/vector-icons";
+import * as SplashScreen from 'expo-splash-screen';
+
+import { useFonts } from '@/src/hooks/useFonts';
+import { typography } from '@/src/theme/typography';
 
 import HomeScreen from '@/src/HomeScreen';
 import SettingsScreen from '@/src/SettingsScreen';
@@ -23,6 +27,9 @@ const commonHeaderOptions = {
   },
   headerTintColor: '#fff',
   headerBackTitleVisible: false,
+  headerTitleStyle: {
+    fontFamily: 'Geist-SemiBold',
+  },
 };
 
 // Tab navigator component
@@ -40,7 +47,13 @@ function TabNavigator() {
         tabBarInactiveTintColor: 'gray',
         headerShown: false,
         animationEnabled: false,
-        tabBarStyle: { height: 60 },
+        tabBarStyle: { 
+          height: 60,
+        },
+        tabBarLabelStyle: {
+          // color: '#fff',
+          fontFamily: 'Geist-SemiBold',
+        },
       })}
     >
       <Tab.Screen 
@@ -62,6 +75,17 @@ function TabNavigator() {
 }
 
 export default function App() {
+  const fontsLoaded = useFonts();
+
+  // 1. First useEffect - Splash Screen
+  useEffect(() => {
+    async function prepare() {
+      await SplashScreen.preventAutoHideAsync();
+    }
+    prepare();
+  }, []);
+
+  // 2. Second useEffect - Sound Loading
   useEffect(() => {
     const loadSounds = async () => {
       try {
@@ -77,8 +101,27 @@ export default function App() {
     };
   }, []);
 
+  // 3. Third useEffect - Hide Splash Screen after fonts load
+  useEffect(() => {
+    if (fontsLoaded) {
+      SplashScreen.hideAsync();
+    }
+  }, [fontsLoaded]);
+
+  if (!fontsLoaded) {
+    return null;
+  }
+
   return (
-    <GluestackUIProvider mode="light">
+    <GluestackUIProvider 
+      mode="light"
+      config={{
+        tokens: {
+          fonts: typography.fonts,
+          fontConfig: typography.fontConfig,
+        },
+      }}
+    >
       <SafeAreaProvider>
         <NavigationContainer>
           <Stack.Navigator>
