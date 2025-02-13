@@ -55,12 +55,12 @@ class WebSocketManager {
       };
 
       this.ws.onerror = (error) => {
-        console.error("WebSocket error:", error);
+        // console.error("WebSocket error:", error);
         this.onStatusChange("Error");
         this.onError(error);
       };
     } catch (error) {
-      console.error("Failed to create WebSocket connection:", error);
+      // console.error("Failed to create WebSocket connection:", error);
       this.onError(error);
     }
   }

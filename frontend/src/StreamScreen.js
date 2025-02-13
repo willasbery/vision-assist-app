@@ -15,23 +15,48 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { Worklets } from "react-native-worklets-core";
 import { Button, ButtonText } from "@/src/components/ui/button";
 import { VStack } from "@/src/components/ui/vstack";
-import ErrorPopup from '@/src/components/ErrorPopup';
 
+import ErrorPopup from '@/src/components/ErrorPopup';
+import NoServerIP from '@/src/components/NoServerIP';
 import { convertFrameToBase64 } from "@/src/utils/convertFrameToBase64";
-import { loadServerIP } from "@/src/common/serverManager";
-import WebSocketManager from "@/src/common/websockets";
 import { playAudio, unloadSounds } from "@/src/utils/audioPlayer";
+import { useWebSocket } from '@/src/hooks/useWebSocket';
+import { useServerIP } from '@/src/hooks/useServerIP';
 
 const StreamScreen = ({ navigation }) => {
-  const [status, setStatus] = useState("Initializing...");
-  const [serverIP, setServerIP] = useState(null);
   const [instructions, setInstructions] = useState(null);
-  const [error, setError] = useState(null);
-  const processingRef = useRef(false);
-  const wsManager = useRef(null);
   const [isErrorVisible, setIsErrorVisible] = useState(false);
-
+  const processingRef = useRef(false);
   const cameraRef = useRef(null);
+
+  const { serverIP, error: ipError } = useServerIP(navigation);
+  const { status, error: wsError, retry, send } = useWebSocket(serverIP, {
+    onMessage: (response) => {
+      if (response.type === "success" && response.data.length > 0) {
+        console.log('Playing audio:', response.data);
+        playAudio(response.data);
+      }
+      processingRef.current = false;
+    },
+    onError: () => {
+      processingRef.current = false;
+    }
+  });
+
+  const error = ipError || wsError;
+
+  useEffect(() => {
+    if (error) {
+      setIsErrorVisible(true);
+    }
+  }, [error]);
+
+  useEffect(() => {
+    return () => {
+      unloadSounds();
+    };
+  }, []);
+
   const device = useCameraDevice("back", {
     physicalDevices: [
       "ultra-wide-angle-camera",
@@ -44,75 +69,13 @@ const StreamScreen = ({ navigation }) => {
     { photoResolution: { width: 1280, height: 720 } },
     { fps: 30 },
   ]);
+  
   const { hasPermission, requestPermission } = useCameraPermission();
 
-  const loadInitialIP = async () => {
-    const ip = await loadServerIP();
-    if (ip) {
-      setServerIP(ip);
-      setError(null);
-    }
-  };
-
-  useEffect(() => {
-    loadInitialIP();
-    return () => {
-      unloadSounds();
-      wsManager.current?.disconnect();
-    };
-  }, []);
-
-  useEffect(() => {
-    const unsubscribe = navigation.addListener("focus", loadInitialIP);
-    return unsubscribe;
-  }, [navigation]);
-
-  useEffect(() => {
-    if (!serverIP) {
-      setStatus("No server IP configured");
-      return;
-    }
-
-    wsManager.current = new WebSocketManager(serverIP, {
-      onStatusChange: (newStatus) => {
-        setStatus(newStatus);
-        if (newStatus === "Connected") {
-          setError(null);
-        }
-      },
-      onMessage: (response) => {
-        if (response.type === "success") {
-          if (response.data.length > 0) {
-            console.log('Playing audio:', response.data);
-            playAudio(response.data);
-          }
-        } else if (response.type === "error") {
-          console.error("Server error:", response.data);
-          setError(response.data);
-        }
-        processingRef.current = false;
-      },
-      onError: (error) => {
-        setError("Connection failed. Please check your settings or retry.");
-      },
-      maxReconnectAttempts: 3,
-    });
-    
-    wsManager.current.connect();
-
-    return () => wsManager.current?.disconnect();
-  }, [serverIP]);
-
-  useEffect(() => {
-    if (error) {
-      setIsErrorVisible(true);
-    }
-  }, [error]);
-
   const onConversion = Worklets.createRunOnJS((imageAsBase64) => {
-    if (!processingRef.current && wsManager.current) {
+    if (!processingRef.current) {
       processingRef.current = true;
-      const success = wsManager.current.send({
+      const success = send({
         type: "frame",
         data: `data:image/jpeg;base64,${imageAsBase64}`,
         timestamp: Date.now(),
@@ -132,27 +95,8 @@ const StreamScreen = ({ navigation }) => {
     }
   }, [onConversion]);
 
-  const handleRetry = () => {
-    setError(null);
-    wsManager.current?.retry();
-  };
-
   if (!serverIP) {
-    return (
-      <SafeAreaView style={styles.container}>
-        <VStack space="md" alignItems="center">
-          <Text style={styles.message}>Please configure server IP in settings</Text>
-          <Button
-            size="lg"
-            variant="solid"
-            action="primary"
-            onPress={() => navigation.navigate("Settings")}
-          >
-            <ButtonText>Go to Settings</ButtonText>
-          </Button>
-        </VStack>
-      </SafeAreaView>
-    );
+    return <NoServerIP onNavigateSettings={() => navigation.navigate("Settings")} />;
   }
 
   if (!hasPermission) {
@@ -175,14 +119,6 @@ const StreamScreen = ({ navigation }) => {
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* <Text style={[
-        styles.status,
-        status === "Connected" && styles.statusConnected,
-        status.includes("Error") && styles.statusError
-      ]}>
-        {status}
-      </Text> */}
-      
       <Camera
         ref={cameraRef}
         style={StyleSheet.absoluteFill}
@@ -208,7 +144,7 @@ const StreamScreen = ({ navigation }) => {
       <ErrorPopup
         isVisible={isErrorVisible}
         error={error}
-        onRetry={handleRetry}
+        onRetry={retry}
         onSettings={() => navigation.navigate("Settings")}
         onClose={() => setIsErrorVisible(false)}
       />

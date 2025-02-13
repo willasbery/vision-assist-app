@@ -1,9 +1,9 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Text,
   Image,
   StyleSheet,
-  ScrollView,
+  ScrollView
 } from "react-native";
 import { Center } from "@/src/components/ui/center"
 import {
@@ -19,82 +19,71 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import * as ImagePicker from "expo-image-picker";
 import { Ionicons } from "@expo/vector-icons";
 import { Camera } from "expo-camera";
+import { Accelerometer } from 'expo-sensors';
 
-import WebSocketManager from "@/src/common/websockets";
-import { loadServerIP } from "@/src/common/serverManager";
 import ErrorPopup from '@/src/components/ErrorPopup';
+import { useWebSocket } from '@/src/hooks/useWebSocket';
+import { useServerIP } from '@/src/hooks/useServerIP';
+import NoServerIP from '@/src/components/NoServerIP';
 
 const HomeScreen = ({ navigation }) => {
-  const [status, setStatus] = useState("Disconnected");
   const [lastImage, setLastImage] = useState(null);
-  const [serverIP, setServerIP] = useState(null);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
   const [isErrorVisible, setIsErrorVisible] = useState(false);
-  const wsManager = useRef(null);
 
-  useEffect(() => {
-    loadInitialIP();
-    return () => {
-      wsManager.current?.disconnect();
-    };
-  }, []);
-
-  useEffect(() => {
-    const unsubscribe = navigation.addListener("focus", loadInitialIP);
-    return unsubscribe;
-  }, [navigation]);
-
-  const loadInitialIP = async () => {
-    try {
-      const ip = await loadServerIP();
-      if (ip) {
-        setServerIP(ip);
-        setError(null);
+  const { serverIP, error: ipError } = useServerIP(navigation);
+  const { status, error: wsError, retry, send } = useWebSocket(serverIP, {
+    onMessage: (response) => {
+      if (response.type === "confirmation") {
+        setLastImage(`http://${serverIP}:8000${response.url}`);
       }
-    } catch (error) {
-      console.error("Error loading server IP:", error);
+      setLoading(false);
     }
-  };
+  });
 
-  useEffect(() => {
-    if (!serverIP) {
-      setStatus("No server IP configured");
-      return;
-    }
-
-    wsManager.current = new WebSocketManager(serverIP, {
-      onStatusChange: (newStatus) => {
-        setStatus(newStatus);
-        if (newStatus === "Connected") {
-          setError(null);
-        }
-      },
-      onMessage: (response) => {
-        if (response.type === "confirmation") {
-          setLastImage(`http://${serverIP}:8000${response.url}`);
-          setError(null);
-        } else if (response.type === "error") {
-          setError(response.message);
-        }
-        setLoading(false);
-      },
-      onError: (error) => {
-        setError("Connection failed. Please check your settings or retry.");
-        setLoading(false);
-      },
-      maxReconnectAttempts: 3,
-    });
-    
-    wsManager.current.connect();
-    return () => wsManager.current?.disconnect();
-  }, [serverIP]);
+  const error = ipError || wsError;
 
   useEffect(() => {
     if (error) {
       setIsErrorVisible(true);
     }
   }, [error]);
+
+  useEffect(() => {
+    let lastUpdate = 0;
+    let lastX = 0;
+    let lastY = 0;
+    let lastZ = 0;
+    const shakeThreshold = 200; // Adjust this value to change sensitivity
+
+    const subscription = Accelerometer.addListener(accelerometerData => {
+      const { x, y, z } = accelerometerData;
+      const currentTime = Date.now();
+
+      if ((currentTime - lastUpdate) > 100) { // Limit updates to 100ms intervals
+        const diffTime = currentTime - lastUpdate;
+        lastUpdate = currentTime;
+
+        const speed = Math.abs(x + y + z - lastX - lastY - lastZ) / diffTime * 10000;
+
+        if (speed > shakeThreshold) {
+          navigation.navigate("Stream");
+        }
+
+        lastX = x;
+        lastY = y;
+        lastZ = z;
+      }
+    });
+
+    // Start the accelerometer
+    Accelerometer.setUpdateInterval(100);
+
+    // Cleanup subscription on unmount
+    return () => {
+      subscription.remove();
+    };
+  }, [navigation]);
 
   const handleImageSelection = async (useCamera = false) => {
     try {
@@ -132,7 +121,7 @@ const HomeScreen = ({ navigation }) => {
   };
 
   const sendImage = (base64Image) => {
-    const success = wsManager.current?.send({
+    const success = send({
       type: "image",
       data: `data:image/jpeg;base64,${base64Image}`,
     });
@@ -145,34 +134,29 @@ const HomeScreen = ({ navigation }) => {
   };
 
   const handleRetry = () => {
-    setError(null);
-    wsManager.current?.retry();
+    retry();
   };
 
   if (!serverIP) {
-    return (
-      <SafeAreaView style={styles.container}>
-        <Center flex={1}>
-          <Text style={styles.message}>Please configure server IP in settings</Text>
-          <Button
-            size="lg"
-            variant="solid"
-            action="primary"
-            mt="$4"
-            onPress={() => navigation.navigate("Settings")}
-          >
-            <ButtonText>Go to Settings</ButtonText>
-          </Button>
-        </Center>
-      </SafeAreaView>
-    );
+    return <NoServerIP onNavigateSettings={() => navigation.navigate("Settings")} />;
   }
 
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView contentContainerStyle={styles.scrollContent}>
-        <Box className="p-4 gap-y-10">
-          <HStack justifyContent="space-between" alignItems="center" mb="$10">
+        <Box className="px-4 py-10 gap-y-10">
+          <VStack 
+            mb="$10"
+            mt="$10"
+            className="gap-y-2"
+            justifyContent="space-between" 
+            alignItems="center" 
+          >
+            <Text
+              className="text-4xl font-bold"
+            >
+              Vision Assist
+            </Text>
             <Text
               style={[
                 styles.status,
@@ -182,13 +166,17 @@ const HomeScreen = ({ navigation }) => {
             >
               Status: {status}
             </Text>
-            <Button
-              variant="link"
+            {/* <Button
+              size="lg"
+              variant="solid"
+              action="primary"
+              className="bg-blue-500"
               onPress={() => navigation.navigate("Settings")}
+              leftIcon={<Ionicons name="settings-outline" size={24} color="white" />}
             >
-              <ButtonIcon as={Ionicons} name="settings-outline" size={24} color="white" />
-            </Button>
-          </HStack>
+              <ButtonText>Settings</ButtonText>
+            </Button> */}
+          </VStack>
 
           <VStack space="xl" mb="$5" p="$5" flexDirection="column" justifyContent="space-between">
             <Button

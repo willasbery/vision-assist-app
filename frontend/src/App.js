@@ -6,54 +6,63 @@ import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import React, { useEffect } from 'react';
 import { initialiseSounds, unloadSounds } from '@/src/utils/audioPlayer';
+import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import { Ionicons } from "@expo/vector-icons";
 
 import HomeScreen from '@/src/HomeScreen';
 import SettingsScreen from '@/src/SettingsScreen';
 import StreamScreen from '@/src/StreamScreen';
 
-
 const Stack = createNativeStackNavigator();
+const Tab = createBottomTabNavigator();
 
-// Common header options to avoid repetition
+// Common header options
 const commonHeaderOptions = {
   headerStyle: {
     backgroundColor: '#3b82f6',
   },
   headerTintColor: '#fff',
-  headerBackTitleVisible: false, // Hide back button text on iOS
+  headerBackTitleVisible: false,
 };
 
-// Screen configurations
-const screens = [
-  {
-    name: 'Home',
-    component: HomeScreen,
-    options: {
-      title: 'Vision Assist',
-      ...commonHeaderOptions,
-    },
-  },
-  {
-    name: 'Settings',
-    component: SettingsScreen,
-    options: {
-      title: 'Settings',
-      ...commonHeaderOptions,
-    },
-  },
-  {
-    name: 'Stream',
-    component: StreamScreen,
-    options: {
-      title: 'Stream',
-      ...commonHeaderOptions,
-    },
-  },
-];
+// Tab navigator component
+function TabNavigator() {
+  return (
+    <Tab.Navigator
+      screenOptions={({ route }) => ({
+        tabBarIcon: ({ focused, color, size }) => {
+          let iconName = focused
+            ? route.name === 'Home' ? 'home' : 'settings'
+            : route.name === 'Home' ? 'home-outline' : 'settings-outline';
+          return <Ionicons name={iconName} size={size} color={color} />;
+        },
+        tabBarActiveTintColor: '#3b82f6',
+        tabBarInactiveTintColor: 'gray',
+        headerShown: false,
+        animationEnabled: false,
+        tabBarStyle: { height: 60 },
+      })}
+    >
+      <Tab.Screen 
+        name="Home" 
+        component={HomeScreen}
+        options={{
+          title: 'Home'
+        }}
+      />
+      <Tab.Screen 
+        name="Settings" 
+        component={SettingsScreen}
+        options={{
+          title: 'Settings'
+        }}
+      />
+    </Tab.Navigator>
+  );
+}
 
 export default function App() {
   useEffect(() => {
-    // Initialize sounds when component mounts
     const loadSounds = async () => {
       try {
         await initialiseSounds();
@@ -63,26 +72,29 @@ export default function App() {
     };
     
     loadSounds();
-
-    // Cleanup sounds when component unmounts
     return () => {
       unloadSounds();
     };
-  }, []); // Empty dependency array means this runs once on mount
+  }, []);
 
   return (
     <GluestackUIProvider mode="light">
       <SafeAreaProvider>
         <NavigationContainer>
           <Stack.Navigator>
-            {screens.map((screen) => (
-              <Stack.Screen
-                key={screen.name}
-                name={screen.name}
-                component={screen.component}
-                options={screen.options}
-              />
-            ))}
+            <Stack.Screen
+              name="TabNavigator"
+              component={TabNavigator}
+              options={{ headerShown: false }}
+            />
+            <Stack.Screen
+              name="Stream"
+              component={StreamScreen}
+              options={{
+                title: 'Stream',
+                ...commonHeaderOptions,
+              }}
+            />
           </Stack.Navigator>
         </NavigationContainer>
         <StatusBar style="light" />
