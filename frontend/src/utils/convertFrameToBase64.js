@@ -1,6 +1,8 @@
 import { VisionCameraProxy } from 'react-native-vision-camera';
 
-const plugin = VisionCameraProxy.initFrameProcessorPlugin('convertFrameToBase64')
+const plugin = VisionCameraProxy.initFrameProcessorPlugin(
+  'convertFrameToBase64'
+);
 
 export function convertFrameToBase64(frame, config) {
   'worklet';
@@ -23,5 +25,3 @@ export function convertFrameToBase64(frame, config) {
     return plugin.call(frame);
   }
 }
-
-  

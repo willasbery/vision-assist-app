@@ -1,13 +1,13 @@
 import { NavigationContainer } from '@react-navigation/native';
-import "@/global.css";
-import { GluestackUIProvider } from "@/src/components/ui/gluestack-ui-provider";
+import '@/global.css';
+import { GluestackUIProvider } from '@/src/components/ui/gluestack-ui-provider';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import React, { useEffect } from 'react';
 import { initialiseSounds, unloadSounds } from '@/src/utils/audioPlayer';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { Ionicons } from "@expo/vector-icons";
+import { Ionicons } from '@expo/vector-icons';
 import * as SplashScreen from 'expo-splash-screen';
 
 import { useFonts } from '@/src/hooks/useFonts';
@@ -39,15 +39,19 @@ function TabNavigator() {
       screenOptions={({ route }) => ({
         tabBarIcon: ({ focused, color, size }) => {
           let iconName = focused
-            ? route.name === 'Home' ? 'home' : 'settings'
-            : route.name === 'Home' ? 'home-outline' : 'settings-outline';
+            ? route.name === 'Home'
+              ? 'home'
+              : 'settings'
+            : route.name === 'Home'
+            ? 'home-outline'
+            : 'settings-outline';
           return <Ionicons name={iconName} size={size} color={color} />;
         },
         tabBarActiveTintColor: '#3b82f6',
         tabBarInactiveTintColor: 'gray',
         headerShown: false,
         animationEnabled: false,
-        tabBarStyle: { 
+        tabBarStyle: {
           height: 60,
         },
         tabBarLabelStyle: {
@@ -56,18 +60,18 @@ function TabNavigator() {
         },
       })}
     >
-      <Tab.Screen 
-        name="Home" 
+      <Tab.Screen
+        name="Home"
         component={HomeScreen}
         options={{
-          title: 'Home'
+          title: 'Home',
         }}
       />
-      <Tab.Screen 
-        name="Settings" 
+      <Tab.Screen
+        name="Settings"
         component={SettingsScreen}
         options={{
-          title: 'Settings'
+          title: 'Settings',
         }}
       />
     </Tab.Navigator>
@@ -94,7 +98,7 @@ export default function App() {
         console.error('Failed to initialize sounds:', error);
       }
     };
-    
+
     loadSounds();
     return () => {
       unloadSounds();
@@ -113,7 +117,7 @@ export default function App() {
   }
 
   return (
-    <GluestackUIProvider 
+    <GluestackUIProvider
       mode="light"
       config={{
         tokens: {

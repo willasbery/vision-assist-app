@@ -14,33 +14,35 @@ class WebSocketManager {
 
   connect() {
     if (!this.serverIP) {
-      this.onError(new Error("No server IP provided"));
+      this.onError(new Error('No server IP provided'));
       return;
     }
 
     const wsUrl = `ws://${this.serverIP}:8000/ws`;
-    console.log("Connecting to:", wsUrl);
-    
+    console.log('Connecting to:', wsUrl);
+
     try {
       this.ws = new WebSocket(wsUrl);
 
       this.ws.onopen = () => {
-        console.log("WebSocket Connected");
+        console.log('WebSocket Connected');
         this.reconnectAttempts = 0;
-        this.onStatusChange("Connected");
+        this.onStatusChange('Connected');
       };
 
       this.ws.onclose = (e) => {
-        console.log("WebSocket Disconnected:", e.code, e.reason);
-        this.onStatusChange("Disconnected");
-        
+        console.log('WebSocket Disconnected:', e.code, e.reason);
+        this.onStatusChange('Disconnected');
+
         if (this.autoReconnect && !this.isManuallyDisconnected) {
           if (this.reconnectAttempts < this.maxReconnectAttempts) {
             this.reconnectAttempts++;
             setTimeout(() => this.connect(), this.reconnectTimeout);
-            this.onStatusChange(`Reconnecting (Attempt ${this.reconnectAttempts}/${this.maxReconnectAttempts})...`);
+            this.onStatusChange(
+              `Reconnecting (Attempt ${this.reconnectAttempts}/${this.maxReconnectAttempts})...`
+            );
           } else {
-            this.onError(new Error("Maximum reconnection attempts reached"));
+            this.onError(new Error('Maximum reconnection attempts reached'));
           }
         }
       };
@@ -50,13 +52,13 @@ class WebSocketManager {
           const response = JSON.parse(event.data);
           this.onMessage(response);
         } catch (e) {
-          console.warn("Failed to parse message:", event.data);
+          console.warn('Failed to parse message:', event.data);
         }
       };
 
       this.ws.onerror = (error) => {
         // console.error("WebSocket error:", error);
-        this.onStatusChange("Error");
+        this.onStatusChange('Error');
         this.onError(error);
       };
     } catch (error) {
@@ -94,4 +96,4 @@ class WebSocketManager {
   }
 }
 
-export default WebSocketManager; 
+export default WebSocketManager;

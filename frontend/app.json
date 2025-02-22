@@ -26,7 +26,8 @@
       },
       "permissions": [
         "android.permission.CAMERA",
-        "android.permission.RECORD_AUDIO"
+        "android.permission.RECORD_AUDIO",
+        "android.permission.MODIFY_AUDIO_SETTINGS"
       ],
       "package": "com.willasbery.visionassist"
     },
@@ -69,6 +70,11 @@
         "asset": "./src/assets/fonts/Geist-Bold.otf",
         "family": "Geist-Bold"
       }
-    ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "c3671af5-75aa-4970-9dc7-cfa28b5e1be5"
+      }
+    }
   }
 }

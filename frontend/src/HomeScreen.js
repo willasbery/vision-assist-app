@@ -1,23 +1,14 @@
-import React, { useState, useEffect } from "react";
-import {
-  Text,
-  Image,
-  StyleSheet,
-  ScrollView
-} from "react-native";
-import { Center } from "@/src/components/ui/center"
-import {
-  Button,
-  ButtonText,
-  ButtonIcon
-} from "@/src/components/ui/button";
-import { Box } from "@/src/components/ui/box";
-import { VStack } from "@/src/components/ui/vstack";
-import { Spinner } from "@/src/components/ui/spinner";
-import { SafeAreaView } from "react-native-safe-area-context";
-import * as ImagePicker from "expo-image-picker";
-import { Ionicons } from "@expo/vector-icons";
-import { Camera } from "expo-camera";
+import React, { useState, useEffect } from 'react';
+import { Text, Image, StyleSheet, ScrollView } from 'react-native';
+import { Center } from '@/src/components/ui/center';
+import { Button, ButtonText, ButtonIcon } from '@/src/components/ui/button';
+import { Box } from '@/src/components/ui/box';
+import { VStack } from '@/src/components/ui/vstack';
+import { Spinner } from '@/src/components/ui/spinner';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import * as ImagePicker from 'expo-image-picker';
+import { Ionicons } from '@expo/vector-icons';
+import { Camera } from 'expo-camera';
 import { Accelerometer } from 'expo-sensors';
 
 import ErrorPopup from '@/src/components/ErrorPopup';
@@ -31,13 +22,18 @@ const HomeScreen = ({ navigation }) => {
   const [isErrorVisible, setIsErrorVisible] = useState(false);
 
   const { serverIP, error: ipError } = useServerIP(navigation);
-  const { status, error: wsError, retry, send } = useWebSocket(serverIP, {
+  const {
+    status,
+    error: wsError,
+    retry,
+    send,
+  } = useWebSocket(serverIP, {
     onMessage: (response) => {
-      if (response.type === "confirmation") {
+      if (response.type === 'confirmation') {
         setLastImage(`http://${serverIP}:8000${response.url}`);
       }
       setLoading(false);
-    }
+    },
   });
 
   const error = ipError || wsError;
@@ -55,18 +51,20 @@ const HomeScreen = ({ navigation }) => {
     let lastZ = 0;
     const shakeThreshold = 200; // Adjust this value to change sensitivity
 
-    const subscription = Accelerometer.addListener(accelerometerData => {
+    const subscription = Accelerometer.addListener((accelerometerData) => {
       const { x, y, z } = accelerometerData;
       const currentTime = Date.now();
 
-      if ((currentTime - lastUpdate) > 100) { // Limit updates to 100ms intervals
+      if (currentTime - lastUpdate > 100) {
+        // Limit updates to 100ms intervals
         const diffTime = currentTime - lastUpdate;
         lastUpdate = currentTime;
 
-        const speed = Math.abs(x + y + z - lastX - lastY - lastZ) / diffTime * 10000;
+        const speed =
+          (Math.abs(x + y + z - lastX - lastY - lastZ) / diffTime) * 10000;
 
         if (speed > shakeThreshold) {
-          navigation.navigate("Stream");
+          navigation.navigate('Stream');
         }
 
         lastX = x;
@@ -89,9 +87,13 @@ const HomeScreen = ({ navigation }) => {
       const permissionResult = useCamera
         ? await Camera.requestCameraPermissionsAsync()
         : await ImagePicker.requestMediaLibraryPermissionsAsync();
-      
+
       if (!permissionResult.granted) {
-        setError(`Please allow access to your ${useCamera ? 'camera' : 'photo library'}`);
+        setError(
+          `Please allow access to your ${
+            useCamera ? 'camera' : 'photo library'
+          }`
+        );
         return;
       }
 
@@ -109,7 +111,7 @@ const HomeScreen = ({ navigation }) => {
       if (!result.canceled && result.assets[0]) {
         setLoading(true);
         setError(null);
-        setStatus("Sending image...");
+        setStatus('Sending image...');
         sendImage(result.assets[0].base64);
       }
     } catch (error) {
@@ -121,13 +123,13 @@ const HomeScreen = ({ navigation }) => {
 
   const sendImage = (base64Image) => {
     const success = send({
-      type: "image",
+      type: 'image',
       data: `data:image/jpeg;base64,${base64Image}`,
     });
 
     if (!success) {
-      setError("Failed to send image. Please check your connection.");
-      setStatus("Disconnected");
+      setError('Failed to send image. Please check your connection.');
+      setStatus('Disconnected');
       setLoading(false);
     }
   };
@@ -137,19 +139,21 @@ const HomeScreen = ({ navigation }) => {
   };
 
   if (!serverIP) {
-    return <NoServerIP onNavigateSettings={() => navigation.navigate("Settings")} />;
+    return (
+      <NoServerIP onNavigateSettings={() => navigation.navigate('Settings')} />
+    );
   }
 
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView contentContainerStyle={styles.scrollContent}>
         <Box className="px-4 py-10 gap-y-10">
-          <VStack 
+          <VStack
             mb="$10"
             mt="$10"
             className="gap-y-2"
-            justifyContent="space-between" 
-            alignItems="center" 
+            justifyContent="space-between"
+            alignItems="center"
           >
             <Text
               className="text-5xl font-semibold text-blue-500"
@@ -160,16 +164,22 @@ const HomeScreen = ({ navigation }) => {
             <Text
               style={[
                 styles.status,
-                status === "Connected" && styles.statusConnected,
-                status.includes("Error") && styles.statusError,
-                { fontFamily: 'Geist-Regular' }
+                status === 'Connected' && styles.statusConnected,
+                status.includes('Error') && styles.statusError,
+                { fontFamily: 'Geist-Regular' },
               ]}
             >
               Status: {status}
             </Text>
           </VStack>
 
-          <VStack space="xl" mb="$5" p="$5" flexDirection="column" justifyContent="space-between">
+          <VStack
+            space="xl"
+            mb="$5"
+            p="$5"
+            flexDirection="column"
+            justifyContent="space-between"
+          >
             <Button
               className="bg-blue-500 items-center"
               size="xl"
@@ -178,8 +188,15 @@ const HomeScreen = ({ navigation }) => {
               onPress={() => handleImageSelection(false)}
               disabled={loading}
             >
-              <ButtonIcon as={Ionicons} name="images-outline" size={16} style={{ marginRight: 10 }} />
-              <ButtonText style={{ fontFamily: 'Geist-Regular' }}>Pick from Gallery</ButtonText>
+              <ButtonIcon
+                as={Ionicons}
+                name="images-outline"
+                size={16}
+                style={{ marginRight: 10 }}
+              />
+              <ButtonText style={{ fontFamily: 'Geist-Regular' }}>
+                Pick from Gallery
+              </ButtonText>
             </Button>
 
             <Button
@@ -190,8 +207,15 @@ const HomeScreen = ({ navigation }) => {
               onPress={() => handleImageSelection(true)}
               disabled={loading}
             >
-              <ButtonIcon as={Ionicons} name="camera-outline" size={16} style={{ marginRight: 10 }} />
-              <ButtonText style={{ fontFamily: 'Geist-Regular' }}>Take Picture</ButtonText>
+              <ButtonIcon
+                as={Ionicons}
+                name="camera-outline"
+                size={16}
+                style={{ marginRight: 10 }}
+              />
+              <ButtonText style={{ fontFamily: 'Geist-Regular' }}>
+                Take Picture
+              </ButtonText>
             </Button>
 
             <Button
@@ -199,11 +223,18 @@ const HomeScreen = ({ navigation }) => {
               size="xl"
               variant="solid"
               action="primary"
-              onPress={() => navigation.navigate("Stream")}
+              onPress={() => navigation.navigate('Stream')}
               disabled={loading}
             >
-              <ButtonIcon as={Ionicons} name="videocam-outline" size={16} style={{ marginRight: 10 }} />
-              <ButtonText style={{ fontFamily: 'Geist-Regular' }}>Stream Video</ButtonText>
+              <ButtonIcon
+                as={Ionicons}
+                name="videocam-outline"
+                size={16}
+                style={{ marginRight: 10 }}
+              />
+              <ButtonText style={{ fontFamily: 'Geist-Regular' }}>
+                Stream Video
+              </ButtonText>
             </Button>
           </VStack>
 
@@ -220,7 +251,7 @@ const HomeScreen = ({ navigation }) => {
             isVisible={isErrorVisible}
             error={error}
             onRetry={handleRetry}
-            onSettings={() => navigation.navigate("Settings")}
+            onSettings={() => navigation.navigate('Settings')}
             onClose={() => setIsErrorVisible(false)}
           />
 
@@ -245,40 +276,40 @@ const HomeScreen = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#fff",
+    backgroundColor: '#fff',
   },
   scrollContent: {
     flexGrow: 1,
   },
   message: {
     fontSize: 16,
-    textAlign: "center",
-    color: "#666",
+    textAlign: 'center',
+    color: '#666',
     fontFamily: 'Geist-Regular',
   },
   status: {
     fontSize: 16,
-    fontWeight: "bold",
+    fontWeight: 'bold',
     fontFamily: 'Geist-Regular',
   },
   statusConnected: {
-    color: "#4CAF50",
+    color: '#4CAF50',
   },
   statusError: {
-    color: "#f44336",
+    color: '#f44336',
   },
   errorText: {
-    color: "#f44336",
+    color: '#f44336',
     fontSize: 16,
-    textAlign: "center",
+    textAlign: 'center',
     fontFamily: 'Geist-Regular',
   },
   image: {
-    width: "100%",
+    width: '100%',
     height: 300,
     borderRadius: 10,
-    backgroundColor: "#f5f5f5",
-    resizeMode: "contain",
+    backgroundColor: '#f5f5f5',
+    resizeMode: 'contain',
   },
 });
 

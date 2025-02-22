@@ -7,11 +7,7 @@ import { Box } from '@/src/components/ui/box';
 
 const ErrorPopup = ({ isVisible, error, onRetry, onSettings, onClose }) => {
   return (
-    <Modal
-      isOpen={isVisible}
-      onClose={onClose}
-      size="lg"
-    >
+    <Modal isOpen={isVisible} onClose={onClose} size="lg">
       <ModalContent>
         <ModalBody>
           <Box p="$4" bg="$errorLight100" borderRadius="$lg">
@@ -35,7 +31,9 @@ const ErrorPopup = ({ isVisible, error, onRetry, onSettings, onClose }) => {
                     onClose();
                   }}
                 >
-                  <ButtonText className="text-blue-500">Go to Settings</ButtonText>
+                  <ButtonText className="text-blue-500">
+                    Go to Settings
+                  </ButtonText>
                 </Button>
               )}
               {onRetry && (
@@ -60,4 +58,4 @@ const ErrorPopup = ({ isVisible, error, onRetry, onSettings, onClose }) => {
   );
 };
 
-export default ErrorPopup; 
+export default ErrorPopup;
