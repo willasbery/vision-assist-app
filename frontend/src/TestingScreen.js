@@ -1,5 +1,12 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, SafeAreaView, ScrollView } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  SafeAreaView,
+  ScrollView,
+  Image,
+} from 'react-native';
 import { Button, ButtonText, ButtonIcon } from '@/src/components/ui/button';
 import { Box } from '@/src/components/ui/box';
 import { VStack } from '@/src/components/ui/vstack';
@@ -24,11 +31,15 @@ const TestingScreen = () => {
   const [isErrorVisible, setIsErrorVisible] = useState(false);
   const [progress, setProgress] = useState(0);
   const [totalFrames, setTotalFrames] = useState(0);
+
   const [currentFrame, setCurrentFrame] = useState(0);
+  const [currentFrameImage, setCurrentFrameImage] = useState(null);
+  const [currentInstruction, setCurrentInstruction] = useState(null);
 
   const processingRef = useRef(false);
   const videoRef = useRef(null);
   const frameIntervalRef = useRef(null);
+  const processAllowedRef = useRef(true);
 
   const { serverIP } = useServerIP();
   const {
@@ -40,6 +51,8 @@ const TestingScreen = () => {
     enabled: false,
     onMessage: (response) => {
       console.log('Server response:', response);
+      processAllowedRef.current = true;
+      setCurrentInstruction(response.data);
     },
   });
 
@@ -78,6 +91,7 @@ const TestingScreen = () => {
         setProgress(0);
         setCurrentFrame(0);
         setTotalFrames(0);
+        setCurrentFrameImage(null);
       }
     } catch (error) {
       setError('Failed to select video');
@@ -87,24 +101,28 @@ const TestingScreen = () => {
 
   useEffect(() => {
     if (videoSource) {
-      const video = createVideoPlayer(videoSource);
-      setVideo(video);
+      const videoPlayer = createVideoPlayer(videoSource);
+      setVideo(videoPlayer);
     }
   }, [videoSource]);
 
-  const generateThumbnail = async (videoUri, timeInMs) => {
+  const generateThumbnail = async (videoUri, timeInS) => {
     try {
+      const timeInMs = timeInS * 1000;
+
       const { uri } = await VideoThumbnails.getThumbnailAsync(videoUri, {
         time: timeInMs,
         quality: 1,
       });
+
+      console.log('Grabbing frame from', timeInMs, timeInS);
 
       // Convert thumbnail to base64
       const base64 = await FileSystem.readAsStringAsync(uri, {
         encoding: FileSystem.EncodingType.Base64,
       });
 
-      return base64;
+      return [uri, base64];
     } catch (e) {
       console.error('Error generating thumbnail:', e);
       throw e;
@@ -121,6 +139,7 @@ const TestingScreen = () => {
     processingRef.current = true;
     setProgress(0);
     setCurrentFrame(0);
+    setCurrentFrameImage(null);
 
     try {
       // Get video duration
@@ -144,7 +163,13 @@ const TestingScreen = () => {
 
         try {
           // Generate thumbnail for current time
-          const base64Frame = await generateThumbnail(videoSource, currentTime);
+          const [uri, base64Frame] = await generateThumbnail(
+            videoSource,
+            currentTime
+          );
+
+          // Update video view with the current frame being processed
+          setCurrentFrameImage(uri);
 
           // Send frame to server
           const success = send({
@@ -153,10 +178,15 @@ const TestingScreen = () => {
             timestamp: Date.now(),
           });
 
-          console.log('Frame sent:', success);
-
           if (!success) {
-            throw new Error('Failed to send frame');
+            throw new Error('Failed to send frame', success);
+          }
+
+          processAllowedRef.current = false;
+
+          // Wait until processAllowedRef.current is true
+          while (!processAllowedRef.current) {
+            await new Promise((resolve) => setTimeout(resolve, 100));
           }
 
           // Update progress
@@ -191,21 +221,18 @@ const TestingScreen = () => {
       clearTimeout(frameIntervalRef.current);
       frameIntervalRef.current = null;
     }
-
-    if (video) {
-      video.pauseAsync().catch(console.error);
-    }
   };
 
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView contentContainerStyle={styles.scrollContent}>
-        <Box p="$4">
-          <VStack space="xl">
+        <Box className="p-6">
+          <VStack space="xl" mt="$4">
             <Button
               size="xl"
               variant="solid"
               action="primary"
+              className="bg-blue-500"
               onPress={handleVideoSelection}
               disabled={isProcessing}
             >
@@ -215,15 +242,28 @@ const TestingScreen = () => {
               </ButtonText>
             </Button>
 
-            {video && (
-              <VideoView
-                style={styles.videoPreview}
-                player={video}
-                contentFit="contain"
-                nativeControls={false}
-                ref={videoRef}
-              />
-            )}
+            {video &&
+              (isProcessing && currentFrameImage ? (
+                <>
+                  <Image
+                    style={styles.videoPreview}
+                    source={{ uri: currentFrameImage }}
+                    resizeMode="contain"
+                  />
+                  <Text>{currentInstruction}</Text>
+                </>
+              ) : (
+                <>
+                  <VideoView
+                    style={styles.videoPreview}
+                    player={video}
+                    contentFit="contain"
+                    nativeControls={false}
+                    ref={videoRef}
+                  />
+                  <Text style={{ color: 'white' }}>Hello</Text>
+                </>
+              ))}
 
             <Box mt="$4">
               <Text style={styles.label}>Frames Per Second: {fps}</Text>
@@ -235,6 +275,7 @@ const TestingScreen = () => {
                 onValueChange={setFps}
                 minimumTrackTintColor="#3b82f6"
                 maximumTrackTintColor="#d1d5db"
+                thumbTintColor="#3b82f6"
                 disabled={isProcessing}
               />
               <Text style={styles.helperText}>
@@ -245,6 +286,7 @@ const TestingScreen = () => {
             {isProcessing ? (
               <>
                 <Button
+                  className="bg-blue-500"
                   size="xl"
                   variant="solid"
                   action="secondary"
@@ -272,6 +314,7 @@ const TestingScreen = () => {
               </>
             ) : (
               <Button
+                className="bg-blue-500"
                 size="xl"
                 variant="solid"
                 action="primary"
@@ -308,7 +351,7 @@ const styles = StyleSheet.create({
   },
   videoPreview: {
     width: '100%',
-    height: 200,
+    height: 300,
     borderRadius: 8,
     backgroundColor: '#f1f1f1',
   },
