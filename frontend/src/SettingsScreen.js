@@ -14,42 +14,37 @@ import {
   FormControlHelper,
   FormControlLabel,
 } from '@/src/components/ui/form-control';
-import ErrorPopup from '@/src/components/ErrorPopup';
-
 import { loadServerIP, saveServerIP } from '@/src/common/serverManager';
-import { CustomText } from './components/CustomText';
+import { CustomText } from '@/src/components/CustomText';
+import { useServerIP } from '@/src/hooks/useServerIP';
 
 const SettingsScreen = ({ navigation }) => {
   const [serverIP, setServerIP] = useState('');
 
   const [audioEnabled, setAudioEnabled] = useState(true);
   const [vibrationEnabled, setVibrationEnabled] = useState(true);
+  const [developmentMode, setDevelopmentMode] = useState(false);
 
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState(null);
-  const [isErrorVisible, setIsErrorVisible] = useState(false);
 
   useEffect(() => {
     loadInitialSettings();
   }, []);
 
-  useEffect(() => {
-    if (error) {
-      setIsErrorVisible(true);
-    }
-  }, [error]);
-
   const loadInitialSettings = async () => {
     try {
-      const [ip, audio, vibration] = await Promise.all([
+      const [ip, audio, vibration, devMode] = await Promise.all([
         loadServerIP(),
         AsyncStorage.getItem('audioEnabled'),
         AsyncStorage.getItem('vibrationEnabled'),
+        AsyncStorage.getItem('developmentMode'),
       ]);
 
       if (ip) setServerIP(ip);
       if (audio !== null) setAudioEnabled(audio === 'true');
       if (vibration !== null) setVibrationEnabled(vibration === 'true');
+      if (devMode !== null) setDevelopmentMode(devMode === 'true');
     } catch (error) {
       console.error('Error loading settings:', error);
       setError('Failed to load settings');
@@ -65,6 +60,7 @@ const SettingsScreen = ({ navigation }) => {
         saveServerIP(serverIP),
         AsyncStorage.setItem('audioEnabled', audioEnabled.toString()),
         AsyncStorage.setItem('vibrationEnabled', vibrationEnabled.toString()),
+        AsyncStorage.setItem('developmentMode', developmentMode.toString()),
       ]);
 
       navigation.goBack();
@@ -159,6 +155,28 @@ const SettingsScreen = ({ navigation }) => {
                   thumbColor={vibrationEnabled ? '#fff' : '#fff'}
                 />
               </HStack>
+
+              <HStack
+                space="md"
+                alignItems="center"
+                justifyContent="space-between"
+              >
+                <VStack>
+                  <CustomText heading size="lg" color="$textDark900">
+                    Development Mode
+                  </CustomText>
+                  <CustomText medium size="sm" color="$textDark500">
+                    Enable developer features
+                  </CustomText>
+                </VStack>
+                <Switch
+                  size="lg"
+                  value={developmentMode}
+                  onValueChange={setDevelopmentMode}
+                  trackColor={{ false: '#e5e7eb', true: '#3b82f6' }}
+                  thumbColor={developmentMode ? '#fff' : '#fff'}
+                />
+              </HStack>
             </VStack>
 
             {error && (
@@ -188,12 +206,12 @@ const SettingsScreen = ({ navigation }) => {
           </Button>
         </Box>
       </ScrollView>
-      <ErrorPopup
+      {/* <ErrorPopup
         isVisible={isErrorVisible}
         error={error}
         onRetry={handleRetry}
         onClose={() => setIsErrorVisible(false)}
-      />
+      /> */}
     </SafeAreaView>
   );
 };

@@ -12,6 +12,7 @@ import { Worklets } from 'react-native-worklets-core';
 import { Button, ButtonText } from '@/src/components/ui/button';
 import { VStack } from '@/src/components/ui/vstack';
 import { Accelerometer } from 'expo-sensors';
+import { useFocusEffect } from '@react-navigation/native';
 
 import ErrorPopup from '@/src/components/ErrorPopup';
 import NoServerIP from '@/src/components/NoServerIP';
@@ -38,6 +39,7 @@ const StreamScreen = ({ navigation }) => {
     error: wsError,
     retry,
     send,
+    setEnabled,
   } = useWebSocket(serverIP, {
     onMessage: (response) => {
       if (response.type === 'success' && response.data.length > 0) {
@@ -88,9 +90,7 @@ const StreamScreen = ({ navigation }) => {
       }
       processingRef.current = false;
     },
-    onError: () => {
-      processingRef.current = false;
-    },
+    enabled: false,
   });
 
   const error = ipError || wsError;
@@ -181,6 +181,13 @@ const StreamScreen = ({ navigation }) => {
       }
     },
     [onConversion]
+  );
+
+  useFocusEffect(
+    React.useCallback(() => {
+      setEnabled(true);
+      return () => setEnabled(false);
+    }, [setEnabled])
   );
 
   if (!serverIP) {

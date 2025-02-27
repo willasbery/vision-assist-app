@@ -5,8 +5,11 @@ export const useWebSocket = (serverIP, options = {}) => {
   const [status, setStatus] = useState("Disconnected");
   const [error, setError] = useState(null);
   const wsManager = useRef(null);
+  const [enabled, setEnabled] = useState(options.enabled ?? true);
 
   useEffect(() => {
+    if (!enabled) return;
+    
     if (!serverIP) {
       setStatus("No server IP configured");
       return;
@@ -29,7 +32,7 @@ export const useWebSocket = (serverIP, options = {}) => {
     
     wsManager.current.connect();
     return () => wsManager.current?.disconnect();
-  }, [serverIP]);
+  }, [serverIP, enabled]);
 
   const retry = () => {
     setError(null);
@@ -45,6 +48,7 @@ export const useWebSocket = (serverIP, options = {}) => {
     error,
     retry,
     send,
-    setError
+    setError,
+    setEnabled
   };
 }; 
