@@ -84,6 +84,7 @@ const StreamScreen = ({ navigation }) => {
           return;
         }
 
+        console.log('Instruction  received:', response.data);
         playAudio(response.data);
 
         lastInstructionTimeRef.current = now;
