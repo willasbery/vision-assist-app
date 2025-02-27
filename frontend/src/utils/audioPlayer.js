@@ -1,5 +1,6 @@
 import { Audio } from 'expo-av';
-import { Vibration } from 'react-native';
+import * as Haptics from 'expo-haptics';
+// import { Vibration } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // Sound objects cache
@@ -10,6 +11,9 @@ const sound_paths = {
 };
 
 let sounds = {};
+
+let audioEnabled = false;
+let vibrationEnabled = false;
 
 // Initialize sounds
 export const initialiseSounds = async () => {
@@ -32,6 +36,9 @@ export const initialiseSounds = async () => {
       move_left: moveLeft,
       move_right: moveRight,
     };
+
+    audioEnabled = await AsyncStorage.getItem('audioEnabled');
+    vibrationEnabled = await AsyncStorage.getItem('vibrationEnabled');
   } catch (error) {
     console.error('Error loading sounds:', error);
     throw error;
@@ -45,10 +52,13 @@ const vibrationPatterns = {
   move_right: [200, 300],
 };
 
-const [audioEnabled, vibrationEnabled] = await Promise.all([
-  AsyncStorage.getItem('audioEnabled'),
-  AsyncStorage.getItem('vibrationEnabled'),
-]);
+// const audioEnabled = await AsyncStorage.getItem('audioEnabled');
+// const vibrationEnabled = await AsyncStorage.getItem('vibrationEnabled');
+
+// const [audioEnabled, vibrationEnabled] = await Promise.all([
+//   AsyncStorage.getItem('audioEnabled'),
+//   AsyncStorage.getItem('vibrationEnabled'),
+// ]);
 
 export const playAudio = async (fileName) => {
   try {
@@ -59,10 +69,28 @@ export const playAudio = async (fileName) => {
       await sounds[fileName].replayAsync();
     }
 
-    // // Vibrate if enabled
-    // if (vibrationEnabled !== 'false' && vibrationPatterns[fileName]) {
-    //   Vibration.vibrate(vibrationPatterns[fileName]);
-    // }
+    // Vibrate if enabled
+    if (vibrationEnabled !== 'false' && vibrationPatterns[fileName]) {
+      if (fileName === 'continue_forward') {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+        await new Promise((resolve) => setTimeout(resolve, 200));
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+        await new Promise((resolve) => setTimeout(resolve, 200));
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      } else if (fileName === 'move_left') {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+        await new Promise((resolve) => setTimeout(resolve, 200));
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+        await new Promise((resolve) => setTimeout(resolve, 200));
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      } else if (fileName === 'move_right') {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+        await new Promise((resolve) => setTimeout(resolve, 200));
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+        await new Promise((resolve) => setTimeout(resolve, 200));
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+      }
+    }
   } catch (error) {
     console.error('Error playing feedback:', error);
   }
@@ -75,7 +103,7 @@ export const unloadSounds = async () => {
       await sound.unloadAsync();
     }
     sounds = {};
-    Vibration.cancel(); // Cancel any ongoing vibrations
+    // Vibration.cancel(); // Cancel any ongoing vibrations
   } catch (error) {
     console.error('Error unloading sounds:', error);
   }

@@ -5,6 +5,7 @@ import { Button, ButtonText, ButtonIcon } from '@/src/components/ui/button';
 import { Box } from '@/src/components/ui/box';
 import { VStack } from '@/src/components/ui/vstack';
 import { Spinner } from '@/src/components/ui/spinner';
+import { Vibration } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
 import { Ionicons } from '@expo/vector-icons';
@@ -64,6 +65,8 @@ const HomeScreen = ({ navigation }) => {
           (Math.abs(x + y + z - lastX - lastY - lastZ) / diffTime) * 10000;
 
         if (speed > shakeThreshold) {
+          // Play vibration
+          Vibration.vibrate([400, 400]);
           navigation.navigate('Stream');
         }
 

@@ -27,6 +27,11 @@ const StreamScreen = ({ navigation }) => {
   const cameraRef = useRef(null);
   const mountedAtRef = useRef(0);
 
+  const lastInstructionTimeRef = useRef(0);
+  const lastContinueForwardAudioTimeRef = useRef(0);
+  const lastContinueLeftAudioTimeRef = useRef(0);
+  const lastContinueRightAudioTimeRef = useRef(0);
+
   const { serverIP, error: ipError } = useServerIP(navigation);
   const {
     status,
@@ -36,8 +41,50 @@ const StreamScreen = ({ navigation }) => {
   } = useWebSocket(serverIP, {
     onMessage: (response) => {
       if (response.type === 'success' && response.data.length > 0) {
-        console.log('Playing audio:', response.data);
+        const now = Date.now();
+        if (response.data === 'continue_forward') {
+          if (now - lastContinueForwardAudioTimeRef.current < 2000) {
+            console.log(
+              'Skipping audio playback for "continue_forward" (played less than 2 seconds ago)'
+            );
+            processingRef.current = false;
+            return;
+          }
+
+          lastContinueForwardAudioTimeRef.current = now;
+        } else if (response.data === 'continue_left') {
+          if (now - lastContinueLeftAudioTimeRef.current < 1000) {
+            console.log(
+              'Skipping audio playback for "continue_left" (played less than 1 second ago)'
+            );
+            processingRef.current = false;
+            return;
+          }
+
+          lastContinueLeftAudioTimeRef.current = now;
+        } else if (response.data === 'continue_right') {
+          if (now - lastContinueRightAudioTimeRef.current < 1000) {
+            console.log(
+              'Skipping audio playback for "continue_right" (played less than 1 second ago)'
+            );
+            processingRef.current = false;
+            return;
+          }
+
+          lastContinueRightAudioTimeRef.current = now;
+        }
+
+        if (now - lastInstructionTimeRef.current < 500) {
+          console.log(
+            'Skipping audio playback for "continue_forward" (played less than 500ms ago)'
+          );
+          processingRef.current = false;
+          return;
+        }
+
         playAudio(response.data);
+
+        lastInstructionTimeRef.current = now;
       }
       processingRef.current = false;
     },
