@@ -259,6 +259,17 @@ const HomeScreen = ({ navigation }) => {
                     Stream Video
                   </ButtonText>
                 </Button>
+                <Button
+                  className="bg-blue-500 items-center"
+                  size="xl"
+                  variant="solid"
+                  action="primary"
+                  onPress={() => navigation.navigate('Testing')}
+                >
+                  <ButtonText style={{ fontFamily: 'Geist-Regular' }}>
+                    Testing
+                  </ButtonText>
+                </Button>
               </VStack>
 
               {loading && (

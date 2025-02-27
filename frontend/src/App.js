@@ -16,7 +16,7 @@ import { typography } from '@/src/theme/typography';
 import HomeScreen from '@/src/HomeScreen';
 import SettingsScreen from '@/src/SettingsScreen';
 import StreamScreen from '@/src/StreamScreen';
-
+import TestingScreen from '@/src/TestingScreen';
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
 
@@ -140,6 +140,13 @@ export default function App() {
               options={{
                 title: 'Stream',
                 ...commonHeaderOptions,
+              }}
+            />
+            <Stack.Screen
+              name="Testing"
+              component={TestingScreen}
+              options={{
+                title: 'Testing',
               }}
             />
           </Stack.Navigator>
