@@ -266,6 +266,12 @@ const HomeScreen = ({ navigation }) => {
                   action="primary"
                   onPress={() => navigation.navigate('Testing')}
                 >
+                  <ButtonIcon
+                    as={Ionicons}
+                    name="bug-outline"
+                    size={16}
+                    style={{ marginRight: 10 }}
+                  />
                   <ButtonText style={{ fontFamily: 'Geist-Regular' }}>
                     Testing
                   </ButtonText>
