@@ -1,61 +1,217 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect } from 'react';
+import { StyleSheet, ScrollView } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Button, ButtonText } from '@/src/components/ui/button';
+import { Box } from '@/src/components/ui/box';
+import { VStack } from '@/src/components/ui/vstack';
+import { HStack } from '@/src/components/ui/hstack';
+import { Input, InputField } from '@/src/components/ui/input';
+import { Text } from '@/src/components/ui/text';
+import { Switch } from '@/src/components/ui/switch';
 import {
-  View,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  StyleSheet,
-  Alert,
-} from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
-
-import { loadServerIP, saveServerIP } from "@/common/serverManager";
+  FormControl,
+  FormControlHelper,
+  FormControlLabel,
+} from '@/src/components/ui/form-control';
+import { loadServerIP, saveServerIP } from '@/src/common/serverManager';
+import { CustomText } from '@/src/components/CustomText';
+import { useServerIP } from '@/src/hooks/useServerIP';
 
 const SettingsScreen = ({ navigation }) => {
-  const [serverIP, setServerIP] = useState("");
+  const [serverIP, setServerIP] = useState('');
+
+  const [audioEnabled, setAudioEnabled] = useState(true);
+  const [vibrationEnabled, setVibrationEnabled] = useState(true);
+  const [developmentMode, setDevelopmentMode] = useState(false);
+
+  const [isSaving, setIsSaving] = useState(false);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
-    loadInitialIP();
+    loadInitialSettings();
   }, []);
 
-  const loadInitialIP = async () => {
-    const ip = await loadServerIP();
-    if (ip) {
-      setServerIP(ip);
+  const loadInitialSettings = async () => {
+    try {
+      const [ip, audio, vibration, devMode] = await Promise.all([
+        loadServerIP(),
+        AsyncStorage.getItem('audioEnabled'),
+        AsyncStorage.getItem('vibrationEnabled'),
+        AsyncStorage.getItem('developmentMode'),
+      ]);
+
+      if (ip) setServerIP(ip);
+      if (audio !== null) setAudioEnabled(audio === 'true');
+      if (vibration !== null) setVibrationEnabled(vibration === 'true');
+      if (devMode !== null) setDevelopmentMode(devMode === 'true');
+    } catch (error) {
+      console.error('Error loading settings:', error);
+      setError('Failed to load settings');
     }
   };
 
-  const handleSaveServerIP = async () => {
+  const handleSaveSettings = async () => {
     try {
-      await saveServerIP(serverIP);
-      Alert.alert("Success", "Server IP saved successfully", [
-        { text: "OK", onPress: () => navigation.goBack() }
+      setIsSaving(true);
+      setError(null);
+
+      await Promise.all([
+        saveServerIP(serverIP),
+        AsyncStorage.setItem('audioEnabled', audioEnabled.toString()),
+        AsyncStorage.setItem('vibrationEnabled', vibrationEnabled.toString()),
+        AsyncStorage.setItem('developmentMode', developmentMode.toString()),
       ]);
+
+      navigation.goBack();
     } catch (error) {
-      Alert.alert("Error", error.message);
+      console.error('Error saving settings:', error);
+      setError(error.message || 'Failed to save settings');
+    } finally {
+      setIsSaving(false);
     }
+  };
+
+  const handleRetry = () => {
+    setError(null);
+    wsManager.current?.retry();
   };
 
   return (
     <SafeAreaView style={styles.container}>
-      <View style={styles.inputContainer}>
-        <Text style={styles.label}>Server IP Address:</Text>
-        <TextInput
-          style={styles.input}
-          value={serverIP}
-          onChangeText={setServerIP}
-          placeholder="Enter server IP (e.g., 192.168.1.100)"
-          keyboardType="numeric"
-          autoCapitalize="none"
-        />
-      </View>
+      <ScrollView contentContainerStyle={styles.scrollContent}>
+        <Box
+          className="h-full justify-between p-6 gap-y-10"
+          justifyContent="space-between"
+        >
+          <VStack space="3xl">
+            <CustomText heading size="4xl" color="$textDark900">
+              Settings
+            </CustomText>
+            <FormControl isRequired>
+              <FormControlLabel>
+                <CustomText heading size="lg" color="$textDark900">
+                  Server IP Address
+                </CustomText>
+              </FormControlLabel>
+              <Input size="lg" variant="outline" mb="$2">
+                <InputField
+                  value={serverIP}
+                  onChangeText={setServerIP}
+                  placeholder="Enter server IP (e.g., 192.168.1.100)"
+                  keyboardType="numeric"
+                  autoCapitalize="none"
+                  style={{ fontFamily: 'Geist-Regular' }}
+                />
+              </Input>
+              <FormControlHelper>
+                <CustomText regular size="sm" color="$textDark500">
+                  Enter the IP address of your server
+                </CustomText>
+              </FormControlHelper>
+            </FormControl>
 
-      <TouchableOpacity
-        style={styles.button}
-        onPress={handleSaveServerIP}
-      >
-        <Text style={styles.buttonText}>Save Settings</Text>
-      </TouchableOpacity>
+            <VStack space="4xl" mt="$5">
+              <HStack
+                space="md"
+                alignItems="center"
+                justifyContent="space-between"
+              >
+                <VStack>
+                  <CustomText heading size="lg" color="$textDark900">
+                    Audio Feedback
+                  </CustomText>
+                  <CustomText medium size="sm" color="$textDark500">
+                    Enable voice instructions
+                  </CustomText>
+                </VStack>
+                <Switch
+                  size="lg"
+                  value={audioEnabled}
+                  onValueChange={setAudioEnabled}
+                  trackColor={{ false: '#e5e7eb', true: '#3b82f6' }}
+                  thumbColor={audioEnabled ? '#fff' : '#fff'}
+                />
+              </HStack>
+
+              <HStack
+                space="md"
+                alignItems="center"
+                justifyContent="space-between"
+              >
+                <VStack>
+                  <CustomText heading size="lg" color="$textDark900">
+                    Vibration Feedback
+                  </CustomText>
+                  <CustomText medium size="sm" color="$textDark500">
+                    Enable haptic feedback
+                  </CustomText>
+                </VStack>
+                <Switch
+                  size="lg"
+                  value={vibrationEnabled}
+                  onValueChange={setVibrationEnabled}
+                  trackColor={{ false: '#e5e7eb', true: '#3b82f6' }}
+                  thumbColor={vibrationEnabled ? '#fff' : '#fff'}
+                />
+              </HStack>
+
+              <HStack
+                space="md"
+                alignItems="center"
+                justifyContent="space-between"
+              >
+                <VStack>
+                  <CustomText heading size="lg" color="$textDark900">
+                    Development Mode
+                  </CustomText>
+                  <CustomText medium size="sm" color="$textDark500">
+                    Enable developer features
+                  </CustomText>
+                </VStack>
+                <Switch
+                  size="lg"
+                  value={developmentMode}
+                  onValueChange={setDevelopmentMode}
+                  trackColor={{ false: '#e5e7eb', true: '#3b82f6' }}
+                  thumbColor={developmentMode ? '#fff' : '#fff'}
+                />
+              </HStack>
+            </VStack>
+
+            {error && (
+              <Text
+                size="sm"
+                color="$error700"
+                textAlign="center"
+                mt="$4"
+                style={{ fontFamily: 'GeistRegular' }}
+              >
+                {error}
+              </Text>
+            )}
+          </VStack>
+          <Button
+            className="mt-6 bg-blue-500"
+            size="xl"
+            variant="solid"
+            action="primary"
+            mt="$6"
+            onPress={handleSaveSettings}
+            isDisabled={isSaving}
+          >
+            <ButtonText style={{ fontFamily: 'Geist-SemiBold' }}>
+              {isSaving ? 'Saving...' : 'Save Settings'}
+            </ButtonText>
+          </Button>
+        </Box>
+      </ScrollView>
+      {/* <ErrorPopup
+        isVisible={isErrorVisible}
+        error={error}
+        onRetry={handleRetry}
+        onClose={() => setIsErrorVisible(false)}
+      /> */}
     </SafeAreaView>
   );
 };
@@ -63,37 +219,11 @@ const SettingsScreen = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#fff",
+    backgroundColor: '#fff',
   },
-  inputContainer: {
-    padding: 20,
+  scrollContent: {
+    flexGrow: 1,
   },
-  label: {
-    fontSize: 16,
-    marginBottom: 10,
-    color: "#666",
-  },
-  input: {
-    borderWidth: 1,
-    borderColor: "#ddd",
-    borderRadius: 8,
-    padding: 12,
-    fontSize: 16,
-    marginBottom: 20,
-  },
-  button: {
-    backgroundColor: "#2196F3",
-    padding: 15,
-    borderRadius: 10,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  buttonText: {
-    color: "white",
-    fontSize: 16,
-    fontWeight: "600",
-  }
 });
 
 export default SettingsScreen;

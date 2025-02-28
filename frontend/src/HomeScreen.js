@@ -1,223 +1,341 @@
-import React, { useState, useEffect, useRef } from "react";
-import {
-  View,
-  Text,
-  TouchableOpacity,
-  Image,
-  StyleSheet,
-  Alert,
-  ScrollView,
-  ActivityIndicator,
-} from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
-import * as ImagePicker from "expo-image-picker";
-import AsyncStorage from "@react-native-async-storage/async-storage";
-import { Ionicons } from "@expo/vector-icons";
-import { Camera } from "expo-camera";
+import React, { useState, useEffect } from 'react';
+import { Text, Image, StyleSheet, ScrollView, Vibration } from 'react-native';
+import { Center } from '@/src/components/ui/center';
+import { Button, ButtonText, ButtonIcon } from '@/src/components/ui/button';
+import { Box } from '@/src/components/ui/box';
+import { VStack } from '@/src/components/ui/vstack';
+import { Spinner } from '@/src/components/ui/spinner';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as ImagePicker from 'expo-image-picker';
+import { Ionicons } from '@expo/vector-icons';
+import { Camera } from 'expo-camera';
+import { Accelerometer } from 'expo-sensors';
+import { useFocusEffect } from '@react-navigation/native';
 
-import WebSocketManager from "@/common/websockets";
-
+import ErrorPopup from '@/src/components/ErrorPopup';
+import { useWebSocket } from '@/src/hooks/useWebSocket';
+import { useServerIP } from '@/src/hooks/useServerIP';
+import NoServerIP from '@/src/components/NoServerIP';
 
 const HomeScreen = ({ navigation }) => {
-  const [status, setStatus] = useState("Disconnected");
   const [lastImage, setLastImage] = useState(null);
-  const [serverIP, setServerIP] = useState(null);
   const [loading, setLoading] = useState(false);
-  const wsManager = useRef(null);
+  const [isErrorVisible, setIsErrorVisible] = useState(false);
+  const [customError, setCustomError] = useState(null);
+
+  const [developmentMode, setDevelopmentMode] = useState(false);
+
+  const { serverIP, error: ipError } = useServerIP(navigation);
+  const {
+    status,
+    error: wsError,
+    retry,
+    send,
+    setEnabled,
+  } = useWebSocket(serverIP, {
+    onMessage: (response) => {
+      if (response.type === 'confirmation') {
+        setLastImage(`http://${serverIP}:8000${response.url}`);
+      }
+      setLoading(false);
+    },
+    enabled: false,
+  });
+
+  useFocusEffect(
+    React.useCallback(() => {
+      const loadDevelopmentMode = async () => {
+        const devMode = await AsyncStorage.getItem('developmentMode');
+        console.log('devMode', devMode);
+        if (devMode !== null) setDevelopmentMode(devMode === 'true');
+      };
+
+      setEnabled(true);
+      loadDevelopmentMode();
+
+      return () => setEnabled(false);
+    }, [setEnabled])
+  );
+
+  const displayedError = customError || ipError || wsError;
 
   useEffect(() => {
-    loadServerIP();
-    const unsubscribe = navigation.addListener("focus", () => {
-      loadServerIP();
+    if (displayedError) {
+      setIsErrorVisible(true);
+    }
+  }, [displayedError]);
+
+  useEffect(() => {
+    let lastUpdate = 0;
+    let lastX = 0;
+    let lastY = 0;
+    let lastZ = 0;
+    const shakeThreshold = 200;
+
+    const subscription = Accelerometer.addListener((accelerometerData) => {
+      const { x, y, z } = accelerometerData;
+      const currentTime = Date.now();
+
+      if (currentTime - lastUpdate > 100) {
+        const diffTime = currentTime - lastUpdate;
+        lastUpdate = currentTime;
+
+        const speed =
+          (Math.abs(x + y + z - lastX - lastY - lastZ) / diffTime) * 10000;
+
+        if (speed > shakeThreshold) {
+          Vibration.vibrate([400, 400]);
+          navigation.navigate('Stream');
+        }
+
+        lastX = x;
+        lastY = y;
+        lastZ = z;
+      }
     });
 
+    Accelerometer.setUpdateInterval(100);
+
     return () => {
-      unsubscribe();
-      wsManager.current?.disconnect();
+      subscription.remove();
     };
   }, [navigation]);
 
-  useEffect(() => {
-    if (serverIP) {
-      wsManager.current = new WebSocketManager(serverIP, {
-        onStatusChange: setStatus,
-        onMessage: (response) => {
-          if (response.type === "confirmation") {
-            setLastImage(`http://${serverIP}:8000${response.url}`);
-          } else if (response.type === "error") {
-            Alert.alert("Error", response.message);
-          }
-          setLoading(false);
-        },
-        onError: (error) => {
-          Alert.alert("Connection Error", "Failed to connect to server");
-          setLoading(false);
-        }
-      });
-      wsManager.current.connect();
-    }
-    return () => {
-      wsManager.current?.disconnect();
-    };
-  }, [serverIP]);
-
-  const loadServerIP = async () => {
+  const handleImageSelection = async (useCamera = false) => {
     try {
-      const ip = await AsyncStorage.getItem("serverIP");
-      if (ip) {
-        setServerIP(ip);
-      }
-    } catch (error) {
-      console.error("Error loading server IP:", error);
-    }
-  };
+      const permissionResult = useCamera
+        ? await Camera.requestCameraPermissionsAsync()
+        : await ImagePicker.requestMediaLibraryPermissionsAsync();
 
-  const pickImage = async () => {
-    try {
-      const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
-      
       if (!permissionResult.granted) {
-        Alert.alert("Permission Required", "Please allow access to your photo library");
+        setCustomError(
+          `Please allow access to your ${
+            useCamera ? 'camera' : 'photo library'
+          }`
+        );
         return;
       }
 
-      const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
-        quality: 0.8,
-        base64: true,
-      });
+      const result = useCamera
+        ? await ImagePicker.launchCameraAsync({
+            quality: 0.8,
+            base64: true,
+          })
+        : await ImagePicker.launchImageLibraryAsync({
+            mediaTypes: ImagePicker.MediaTypeOptions.Images,
+            quality: 0.8,
+            base64: true,
+          });
 
-      if (!result.canceled && result.assets[0]) {
+      if (!result.canceled && result.assets && result.assets[0]) {
         setLoading(true);
-        setStatus("Sending image...");
-        const base64Image = result.assets[0].base64;
-        sendImage(base64Image);
+        setCustomError(null);
+        sendImage(result.assets[0].base64);
       }
     } catch (error) {
-      Alert.alert("Error", "Failed to pick image");
-      console.error(error);
-      setLoading(false);
-    }
-  };
-
-  const takePicture = async () => {
-    try {
-      const { status } = await Camera.requestCameraPermissionsAsync();
-      if (status !== "granted") {
-        Alert.alert("Permission Required", "Please allow access to your camera");
-        return;
-      }
-
-      const result = await ImagePicker.launchCameraAsync({
-        quality: 0.8,
-        base64: true,
-      });
-
-      if (!result.canceled && result.assets[0]) {
-        setLoading(true);
-        setStatus("Sending image...");
-        const base64Image = result.assets[0].base64;
-        sendImage(base64Image);
-      }
-    } catch (error) {
-      Alert.alert("Error", "Failed to take picture");
+      setCustomError(`Failed to ${useCamera ? 'take picture' : 'pick image'}`);
       console.error(error);
       setLoading(false);
     }
   };
 
   const sendImage = (base64Image) => {
-    const success = wsManager.current?.send({
-      type: "image",
+    const success = send({
+      type: 'image',
       data: `data:image/jpeg;base64,${base64Image}`,
     });
 
     if (!success) {
-      Alert.alert("Error", "WebSocket is not connected");
-      setStatus("Disconnected - Retrying...");
+      setCustomError('Failed to send image. Please check your connection.');
       setLoading(false);
-      wsManager.current?.connect();
     }
+  };
+
+  const handleRetry = () => {
+    retry();
+    setCustomError(null);
+    // setIsErrorVisible(false);
   };
 
   if (!serverIP) {
     return (
-      <SafeAreaView style={styles.container}>
-        <Text>Please configure server IP in settings</Text>
-        <TouchableOpacity
-          style={styles.button}
-          onPress={() => navigation.navigate("Settings")}
-        >
-          <Text style={styles.buttonText}>Go to Settings</Text>
-        </TouchableOpacity>
-      </SafeAreaView>
+      <NoServerIP onNavigateSettings={() => navigation.navigate('Settings')} />
     );
   }
 
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView contentContainerStyle={styles.scrollContent}>
-        <View style={styles.header}>
-          <Text style={[
-            styles.status,
-            { color: status === "Connected" ? "green" : status === "Error" ? "red" : "orange" }
-          ]}>
-            Status: {status}
-          </Text>
-          <TouchableOpacity
-            style={styles.settingsButton}
-            onPress={() => navigation.navigate("Settings")}
+        <Box className="px-4 py-10 gap-y-10">
+          <VStack
+            mb="$10"
+            mt="$10"
+            className="gap-y-2"
+            justifyContent="space-between"
+            alignItems="center"
           >
-            <Ionicons name="settings-outline" size={24} color="#2196F3" />
-          </TouchableOpacity>
-        </View>
+            <Text
+              className="text-5xl font-semibold text-blue-500"
+              style={{ fontFamily: 'Geist-SemiBold' }}
+            >
+              Vision Assist
+            </Text>
+            <Text
+              style={[
+                styles.status,
+                status.includes('Connected') && styles.statusConnected,
+                status.includes('Reconnecting') && styles.statusReconnecting,
+                status.includes('Disconnected') && styles.statusDisconnected,
+                { fontFamily: 'Geist-Regular' },
+              ]}
+            >
+              Status: {status}
+            </Text>
+          </VStack>
 
-        <View style={styles.buttonContainer}>
-          <TouchableOpacity
-            style={styles.button}
-            onPress={pickImage}
-            disabled={loading}
-          >
-            <Ionicons name="images-outline" size={24} color="white" />
-            <Text style={styles.buttonText}>Pick from Gallery</Text>
-          </TouchableOpacity>
+          {developmentMode ? (
+            <>
+              <VStack
+                space="xl"
+                mb="$5"
+                p="$5"
+                flexDirection="column"
+                justifyContent="space-between"
+              >
+                <Button
+                  className="bg-blue-500 items-center"
+                  size="xl"
+                  variant="solid"
+                  action="primary"
+                  onPress={() => handleImageSelection(false)}
+                  disabled={loading}
+                >
+                  <ButtonIcon
+                    as={Ionicons}
+                    name="images-outline"
+                    size={16}
+                    style={{ marginRight: 10 }}
+                  />
+                  <ButtonText style={{ fontFamily: 'Geist-Regular' }}>
+                    Pick from Gallery
+                  </ButtonText>
+                </Button>
 
-          <TouchableOpacity
-            style={styles.button}
-            onPress={takePicture}
-            disabled={loading}
-          >
-            <Ionicons name="camera-outline" size={24} color="white" />
-            <Text style={styles.buttonText}>Take Picture</Text>
-          </TouchableOpacity>
+                <Button
+                  className="bg-blue-500 items-center"
+                  size="xl"
+                  variant="solid"
+                  action="primary"
+                  onPress={() => handleImageSelection(true)}
+                  disabled={loading}
+                >
+                  <ButtonIcon
+                    as={Ionicons}
+                    name="camera-outline"
+                    size={16}
+                    style={{ marginRight: 10 }}
+                  />
+                  <ButtonText style={{ fontFamily: 'Geist-Regular' }}>
+                    Take Picture
+                  </ButtonText>
+                </Button>
 
-          <TouchableOpacity
-            style={styles.button}
-            onPress={() => navigation.navigate("Stream")}
-            disabled={loading}
-          >
-            <Ionicons name="videocam-outline" size={24} color="white" />
-            <Text style={styles.buttonText}>Stream Video</Text>
-          </TouchableOpacity>
-        </View>
+                <Button
+                  className="bg-blue-500 items-center"
+                  size="xl"
+                  variant="solid"
+                  action="primary"
+                  onPress={() => navigation.navigate('Stream')}
+                  disabled={loading}
+                >
+                  <ButtonIcon
+                    as={Ionicons}
+                    name="videocam-outline"
+                    size={16}
+                    style={{ marginRight: 10 }}
+                  />
+                  <ButtonText style={{ fontFamily: 'Geist-Regular' }}>
+                    Stream Video
+                  </ButtonText>
+                </Button>
+                <Button
+                  className="bg-blue-500 items-center"
+                  size="xl"
+                  variant="solid"
+                  action="primary"
+                  onPress={() => navigation.navigate('Testing')}
+                >
+                  <ButtonIcon
+                    as={Ionicons}
+                    name="bug-outline"
+                    size={16}
+                    style={{ marginRight: 10 }}
+                  />
+                  <ButtonText style={{ fontFamily: 'Geist-Regular' }}>
+                    Testing
+                  </ButtonText>
+                </Button>
+              </VStack>
 
-        {loading && (
-          <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color="#2196F3" />
-            <Text style={styles.loadingText}>Sending image...</Text>
-          </View>
-        )}
+              {loading && (
+                <Center my="$5">
+                  <Spinner size="large" />
+                  <Text style={styles.message} mt="$2">
+                    Sending image...
+                  </Text>
+                </Center>
+              )}
 
-        {lastImage && (
-          <View style={styles.previewContainer}>
-            <Text style={styles.previewText}>Last Sent Image:</Text>
-            <Image
-              source={{ uri: lastImage }}
-              style={styles.preview}
-              resizeMode="contain"
-            />
-          </View>
-        )}
+              <ErrorPopup
+                isVisible={isErrorVisible}
+                error={displayedError}
+                onRetry={handleRetry}
+                onSettings={() => navigation.navigate('Settings')}
+                onClose={() => setIsErrorVisible(false)}
+              />
+
+              {lastImage && (
+                <Box mt="$5" alignItems="center">
+                  <Text style={styles.message} mb="$2">
+                    Last Sent Image:
+                  </Text>
+                  <Image
+                    source={{ uri: lastImage }}
+                    alt="Last sent image"
+                    style={styles.image}
+                  />
+                </Box>
+              )}
+            </>
+          ) : (
+            <VStack>
+              <Button
+                className="bg-blue-500 items-center h-32"
+                size="xl"
+                variant="solid"
+                action="primary"
+                onPress={() => navigation.navigate('Stream')}
+                disabled={loading}
+              >
+                <ButtonIcon
+                  as={Ionicons}
+                  name="videocam-outline"
+                  size={32}
+                  style={{
+                    marginRight: 10,
+                    color: 'white',
+                  }}
+                />
+                <ButtonText
+                  style={{ fontFamily: 'Geist-Regular', fontSize: 24 }}
+                >
+                  Start Processing
+                </ButtonText>
+              </Button>
+            </VStack>
+          )}
+        </Box>
       </ScrollView>
     </SafeAreaView>
   );
@@ -226,54 +344,44 @@ const HomeScreen = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#fff",
+    backgroundColor: '#fff',
   },
   scrollContent: {
     flexGrow: 1,
-    padding: 20,
   },
-  header: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 20,
+  message: {
+    fontSize: 16,
+    textAlign: 'center',
+    color: '#666',
+    fontFamily: 'Geist-Regular',
   },
   status: {
-    fontSize: 18,
-    fontWeight: "bold",
-  },
-  buttonContainer: {
-    gap: 15,
-    marginBottom: 20,
-  },
-  button: {
-    backgroundColor: "#2196F3",
-    padding: 15,
-    borderRadius: 10,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 10,
-  },
-  buttonText: {
-    color: "white",
     fontSize: 16,
-    fontWeight: "600",
+    fontWeight: 'bold',
+    fontFamily: 'Geist-Regular',
   },
-  loadingContainer: {
-    alignItems: "center",
-    marginVertical: 20,
+  statusConnected: {
+    color: '#4CAF50',
   },
-  previewContainer: {
-    marginTop: 20,
-    alignItems: "center",
+  statusDisconnected: {
+    color: '#f44336',
   },
-  preview: {
-    width: "100%",
+  statusError: {
+    color: '#f44336',
+  },
+  errorText: {
+    color: '#f44336',
+    fontSize: 16,
+    textAlign: 'center',
+    fontFamily: 'Geist-Regular',
+  },
+  image: {
+    width: '100%',
     height: 300,
     borderRadius: 10,
-    backgroundColor: "#f0f0f0",
-  }
+    backgroundColor: '#f5f5f5',
+    resizeMode: 'contain',
+  },
 });
 
 export default HomeScreen;

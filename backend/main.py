@@ -44,28 +44,30 @@ async def websocket_endpoint(websocket: WebSocket):
                     
                     logger.info("Processing frame...")
                     start_time = datetime.now() 
-                    processed_frame, instructions = manager.video_processor.process_frame(frame)
+                    processed_frame, instruction = manager.video_processor.process_frame(frame)
                     end_time = datetime.now()
                     logger.info(f"Frame processed in {(end_time - start_time).total_seconds():.3f} seconds")
                     
-                    if instructions is not None:
-                        processed_base64 = manager.frame_to_base64(processed_frame)
+                    if instruction is not None:
+                        # processed_base64 = manager.frame_to_base64(processed_frame)
                         
-                        frame_number = manager.frame_counters[websocket]
-                        timestamp = current_time.strftime("%Y%m%d_%H%M%S_%f")
-                        filename = f"frame_{timestamp}_{frame_number:06d}.jpg"
-                        filepath = os.path.join(FRAMES_DIR, filename)
+                        # frame_number = manager.frame_counters[websocket]
+                        # timestamp = current_time.strftime("%Y%m%d_%H%M%S_%f")
+                        # filename = f"frame_{timestamp}_{frame_number:06d}.jpg"
+                        # filepath = os.path.join(FRAMES_DIR, filename)
                         
-                        cv2.imwrite(filepath, processed_frame)
-                        logger.debug(f"Saved processed frame: {filepath}")
+                        # cv2.imwrite(filepath, processed_frame)
+                        # logger.debug(f"Saved processed frame: {filepath}")
+                        
+                        logger.info(f"Sending instruction: {instruction}")
                         
                         manager.frame_counters[websocket] += 1
                         manager.last_frame_time[websocket] = current_time
                         
                         await websocket.send_json({
                             "type": "success",
-                            "data": instructions,
-                            "url": f"/stream_frames/{filename}"
+                            "data": instruction,
+                            # "url": f"/stream_frames/{filename}"
                         })
                     else:
                         logger.warning("Frame processing failed")

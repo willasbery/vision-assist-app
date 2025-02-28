@@ -26,7 +26,8 @@
       },
       "permissions": [
         "android.permission.CAMERA",
-        "android.permission.RECORD_AUDIO"
+        "android.permission.RECORD_AUDIO",
+        "android.permission.MODIFY_AUDIO_SETTINGS"
       ],
       "package": "com.willasbery.visionassist"
     },
@@ -41,7 +42,45 @@
           "enableMicrophonePermission": true,
           "microphonePermissionText": "$(PRODUCT_NAME) needs access to your Microphone."
         }
-      ]
-    ]
+      ],
+      [
+        "expo-av",
+        {
+          "microphonePermissionText": "$(PRODUCT_NAME) needs access to your Microphone."
+        }
+      ],
+      [
+        "expo-audio",
+        {
+          "supportsBackgroundPlayback": true,
+          "supportsPictureInPicture": true
+        }
+      ],
+      "expo-asset",
+      "expo-font"
+    ],
+    "fonts": [
+      {
+        "asset": "./src/assets/fonts/Geist-Regular.otf",
+        "family": "Geist"
+      },
+      {
+        "asset": "./src/assets/fonts/Geist-Medium.otf",
+        "family": "Geist-Medium"
+      },
+      {
+        "asset": "./src/assets/fonts/Geist-SemiBold.otf",
+        "family": "Geist-SemiBold"
+      },
+      {
+        "asset": "./src/assets/fonts/Geist-Bold.otf",
+        "family": "Geist-Bold"
+      }
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "c3671af5-75aa-4970-9dc7-cfa28b5e1be5"
+      }
+    }
   }
 }

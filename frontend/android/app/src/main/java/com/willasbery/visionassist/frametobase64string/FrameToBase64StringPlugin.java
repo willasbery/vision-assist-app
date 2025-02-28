@@ -38,14 +38,17 @@ public class FrameToBase64StringPlugin extends FrameProcessorPlugin {
 
     Bitmap originalBitmap = BitmapUtils.getBitmap(frame);
   
-    Bitmap resizedBitmap = Bitmap.createScaledBitmap(
-      originalBitmap,
-      newWidth.intValue(),
-      newHeight.intValue(),
-      true
-    );
+    // Bitmap resizedBitmap = Bitmap.createScaledBitmap(
+    //   originalBitmap,
+    //   newWidth.intValue(),
+    //   newHeight.intValue(),
+    //   true
+    // );
 
-    String base64String = BitmapUtils.bitmap2Base64(resizedBitmap);
+    // String base64String = BitmapUtils.bitmap2Base64(resizedBitmap);
+    
+    String base64String = BitmapUtils.bitmap2Base64(originalBitmap);
+
         
     return base64String;
   }

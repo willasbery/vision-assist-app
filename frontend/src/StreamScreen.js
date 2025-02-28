@@ -1,183 +1,254 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef } from 'react';
+import { Text, StyleSheet, View } from 'react-native';
 import {
-  Text,
-  TouchableOpacity,
-  StyleSheet,
-  Alert,
-} from "react-native";
-import { 
-  Camera, 
-  runAtTargetFps, 
-  useCameraDevice, 
-  useCameraFormat, 
-  useCameraPermission, 
-  useFrameProcessor 
-} from "react-native-vision-camera";
-import { SafeAreaView } from "react-native-safe-area-context";
-import { Worklets } from "react-native-worklets-core";
+  Camera,
+  useCameraDevice,
+  useCameraFormat,
+  useCameraPermission,
+  useFrameProcessor,
+} from 'react-native-vision-camera';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { Worklets } from 'react-native-worklets-core';
+import { Button, ButtonText } from '@/src/components/ui/button';
+import { VStack } from '@/src/components/ui/vstack';
+import { Accelerometer } from 'expo-sensors';
+import { useFocusEffect } from '@react-navigation/native';
 
-import { convertFrameToBase64 } from "@/utils/convertFrameToBase64";
-import { loadServerIP } from "@/common/serverManager";
-import WebSocketManager from "@/common/websockets";
+import ErrorPopup from '@/src/components/ErrorPopup';
+import NoServerIP from '@/src/components/NoServerIP';
+import { convertFrameToBase64 } from '@/src/utils/convertFrameToBase64';
+import { playAudio, unloadSounds } from '@/src/utils/audioPlayer';
+import { useWebSocket } from '@/src/hooks/useWebSocket';
+import { useServerIP } from '@/src/hooks/useServerIP';
 
 const StreamScreen = ({ navigation }) => {
-  const [status, setStatus] = useState("Connecting...");
-  const [serverIP, setServerIP] = useState(null);
-
   const [instructions, setInstructions] = useState(null);
-  const [response, setResponse] = useState(null);
-
-  // Sound effects
-  const continueForward = new Player('continue_forward.wav')
-  const immediatelyTurnLeft = new Player('immediately_turn_left.wav')
-  const immediatelyTurnRight = new Player('immediately_turn_right.wav')
-  const possiblyTurnLeft = new Player('possibly_turn_left.wav')
-  const possiblyTurnRight = new Player('possibly_turn_right.wav')
-  const turnLeft = new Player('turn_left.wav')
-  const turnRight = new Player('turn_right.wav')
-
+  const [isErrorVisible, setIsErrorVisible] = useState(false);
+  const processingRef = useRef(false);
   const cameraRef = useRef(null);
-  const device = useCameraDevice("back");
+  const mountedAtRef = useRef(0);
+
+  const lastInstructionTimeRef = useRef(0);
+  const lastContinueForwardAudioTimeRef = useRef(0);
+  const lastContinueLeftAudioTimeRef = useRef(0);
+  const lastContinueRightAudioTimeRef = useRef(0);
+
+  const { serverIP, error: ipError } = useServerIP(navigation);
+  const {
+    status,
+    error: wsError,
+    retry,
+    send,
+    setEnabled,
+  } = useWebSocket(serverIP, {
+    onMessage: (response) => {
+      if (response.type === 'success' && response.data.length > 0) {
+        const now = Date.now();
+        if (response.data === 'continue_forward') {
+          if (now - lastContinueForwardAudioTimeRef.current < 2000) {
+            console.log(
+              'Skipping audio playback for "continue_forward" (played less than 2 seconds ago)'
+            );
+            processingRef.current = false;
+            return;
+          }
+
+          lastContinueForwardAudioTimeRef.current = now;
+        } else if (response.data === 'continue_left') {
+          if (now - lastContinueLeftAudioTimeRef.current < 1000) {
+            console.log(
+              'Skipping audio playback for "continue_left" (played less than 1 second ago)'
+            );
+            processingRef.current = false;
+            return;
+          }
+
+          lastContinueLeftAudioTimeRef.current = now;
+        } else if (response.data === 'continue_right') {
+          if (now - lastContinueRightAudioTimeRef.current < 1000) {
+            console.log(
+              'Skipping audio playback for "continue_right" (played less than 1 second ago)'
+            );
+            processingRef.current = false;
+            return;
+          }
+
+          lastContinueRightAudioTimeRef.current = now;
+        }
+
+        if (now - lastInstructionTimeRef.current < 500) {
+          console.log(
+            'Skipping audio playback for "continue_forward" (played less than 500ms ago)'
+          );
+          processingRef.current = false;
+          return;
+        }
+
+        console.log('Instruction  received:', response.data);
+        playAudio(response.data);
+
+        lastInstructionTimeRef.current = now;
+      }
+      processingRef.current = false;
+    },
+    enabled: false,
+  });
+
+  const error = ipError || wsError;
+
+  useEffect(() => {
+    if (error) {
+      setIsErrorVisible(true);
+    }
+  }, [error]);
+
+  useEffect(() => {
+    return () => {
+      unloadSounds();
+    };
+  }, []);
+
+  useEffect(() => {
+    mountedAtRef.current = Date.now();
+  }, []);
+
+  useEffect(() => {
+    let lastUpdate = 0;
+    let lastX = 0;
+    let lastY = 0;
+    let lastZ = 0;
+    const shakeThreshold = 200;
+
+    const subscription = Accelerometer.addListener((accelerometerData) => {
+      if (Date.now() - mountedAtRef.current < 3000) return;
+
+      const { x, y, z } = accelerometerData;
+      const currentTime = Date.now();
+
+      if (currentTime - lastUpdate > 100) {
+        const diffTime = currentTime - lastUpdate;
+        lastUpdate = currentTime;
+
+        const speed =
+          (Math.abs(x + y + z - lastX - lastY - lastZ) / diffTime) * 10000;
+
+        if (speed > shakeThreshold) {
+          navigation.navigate('TabNavigator', { screen: 'Home' });
+        }
+
+        lastX = x;
+        lastY = y;
+        lastZ = z;
+      }
+    });
+
+    Accelerometer.setUpdateInterval(100);
+    return () => subscription.remove();
+  }, [navigation]);
+
+  const device = useCameraDevice('back', {
+    physicalDevices: ['ultra-wide-angle-camera', 'wide-angle-camera'],
+  });
+
   const format = useCameraFormat(device, [
     { videoResolution: { width: 1280, height: 720 } },
     { photoResolution: { width: 1280, height: 720 } },
     { fps: 30 },
-  ])
+  ]);
+
   const { hasPermission, requestPermission } = useCameraPermission();
-  // const { resize } = useResizePlugin();
-
-  const wsManager = useRef(null);
-
-  const loadInitialIP = async () => {
-    const ip = await loadServerIP();
-    if (ip) {
-      setServerIP(ip);
-    }
-  };
-
-  useEffect(() => {
-    turnRight.play()
-  }, []);
-
-  useEffect(() => {
-    loadInitialIP();
-    const unsubscribe = navigation.addListener("focus", () => {
-      loadInitialIP();
-    });
-    return () => {
-      unsubscribe();
-      wsManager.current?.disconnect();
-    };
-  }, [navigation]);
-
-  useEffect(() => {
-    if (serverIP) {
-      wsManager.current = new WebSocketManager(serverIP, {
-        onStatusChange: setStatus,
-        onMessage: (response) => {
-          console.log('Server response:', response);
-          if (response.type === "success") {
-            const parsedInstructions = JSON.parse(response.data);
-            setInstructions(parsedInstructions);
-
-            Tts.stop();
-            parsedInstructions.forEach((instruction, _) => {
-              const text = `${instruction.instruction_type} ${instruction.direction} ${instruction.danger} danger`;
-              Tts.speak(text);
-            });
-          } else if (response.type === "error") {
-            console.error("Server error:", response.data);
-            setResponse(response.data);
-          }
-        },
-        onError: (error) => {
-          Alert.alert("Connection Error", "Failed to connect to server");
-        }
-      });
-      wsManager.current.connect();
-    }
-    return () => {
-      wsManager.current?.disconnect();
-    };
-  }, [serverIP]);
-
-  
 
   const onConversion = Worklets.createRunOnJS((imageAsBase64) => {
-    wsManager.current?.send({
-      type: "frame",
-      data: `data:image/jpeg;base64,${imageAsBase64}`,
-      timestamp: Date.now(),
-    });
+    if (!processingRef.current) {
+      processingRef.current = true;
+      const success = send({
+        type: 'frame',
+        data: `data:image/jpeg;base64,${imageAsBase64}`,
+        timestamp: Date.now(),
+      });
+
+      if (!success) {
+        processingRef.current = false;
+      }
+    }
   });
 
-  const frameProcessor = useFrameProcessor((frame) => {
-    "worklet";
-
-    runAtTargetFps(2, () => {
-      // const imageAsBase64 = convertFrameToBase64(frame, { 
-      //   width: 640, 
-      //   height: 640 
-      // });
-
+  const frameProcessor = useFrameProcessor(
+    (frame) => {
+      'worklet';
       const imageAsBase64 = convertFrameToBase64(frame);
-
-      if (imageAsBase64 === null) {
-        return;
+      if (imageAsBase64) {
+        onConversion(imageAsBase64);
       }
+    },
+    [onConversion]
+  );
 
-      onConversion(imageAsBase64);
-    });
-  }, [onConversion]);
+  useFocusEffect(
+    React.useCallback(() => {
+      setEnabled(true);
+      return () => setEnabled(false);
+    }, [setEnabled])
+  );
 
   if (!serverIP) {
     return (
-      <SafeAreaView style={styles.container}>
-        <Text>Please configure server IP in settings</Text>
-        <TouchableOpacity
-          style={styles.button}
-          onPress={() => navigation.navigate("Settings")}
-        >
-          <Text style={styles.buttonText}>Go to Settings</Text>
-        </TouchableOpacity>
-      </SafeAreaView>
+      <NoServerIP onNavigateSettings={() => navigation.navigate('Settings')} />
     );
   }
 
   if (!hasPermission) {
     return (
       <SafeAreaView style={styles.container}>
-        <Text>Camera permissions required</Text>
-        <TouchableOpacity
-          style={styles.button}
-          onPress={requestPermission}
-        >
-          <Text style={styles.buttonText}>Grant Permission</Text>
-        </TouchableOpacity>
+        <VStack space="md" alignItems="center">
+          <Text style={styles.message}>Camera permissions required</Text>
+          <Button
+            size="lg"
+            variant="solid"
+            action="primary"
+            onPress={requestPermission}
+          >
+            <ButtonText>Grant Permission</ButtonText>
+          </Button>
+        </VStack>
       </SafeAreaView>
     );
   }
 
   return (
     <SafeAreaView style={styles.container}>
-      <Text style={styles.status}>{status}</Text>
       <Camera
         ref={cameraRef}
         style={StyleSheet.absoluteFill}
         device={device}
         format={format}
-        isActive={true}
+        isActive={!error}
         frameProcessor={frameProcessor}
-        fps={30}
+        enableZoomGesture={true}
+        onError={(error) => console.error('Camera error:', error)}
+        androidPreviewViewType="surface-view"
       />
+
       {instructions && (
-        <Text style={styles.instructions}>
-          {instructions.map((instruction, index) => (
-            `${index + 1}. ${instruction.instruction_type}: ${instruction.direction} (${instruction.danger} danger)\n`
-          ))}
-        </Text>
+        <View style={styles.instructionsContainer}>
+          <Text style={styles.instructions}>
+            {instructions.map(
+              (instruction, index) =>
+                `${index + 1}. ${instruction.instruction_type}: ${
+                  instruction.direction
+                } (${instruction.danger} danger)\n`
+            )}
+          </Text>
+        </View>
       )}
-      {response && <Text style={styles.error}>{response}</Text>}
+
+      <ErrorPopup
+        isVisible={isErrorVisible}
+        error={error}
+        onRetry={retry}
+        onSettings={() => navigation.navigate('Settings')}
+        onClose={() => setIsErrorVisible(false)}
+      />
     </SafeAreaView>
   );
 };
@@ -185,45 +256,59 @@ const StreamScreen = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    backgroundColor: "#fff",
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#fff',
   },
-  button: {
-    marginTop: 20,
-    padding: 15,
-    backgroundColor: "#2196F3",
-    borderRadius: 10,
-    minWidth: 200,
-    alignItems: "center",
-  },
-  buttonText: {
-    color: "#fff",
+  message: {
     fontSize: 16,
-    fontWeight: "600",
+    textAlign: 'center',
+    marginBottom: 20,
+    fontFamily: 'Geist-Regular',
   },
   status: {
     fontSize: 18,
-    fontWeight: "bold",
+    fontWeight: 'bold',
     marginBottom: 20,
+    zIndex: 1,
   },
-  instructions: {
+  statusConnected: {
+    color: '#4CAF50',
+  },
+  statusError: {
+    color: '#f44336',
+  },
+  instructionsContainer: {
     position: 'absolute',
     top: 100,
     left: 20,
     right: 20,
-    backgroundColor: 'rgba(255, 255, 255, 0.8)',
-    padding: 10,
-    borderRadius: 5,
+    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+    padding: 15,
+    borderRadius: 10,
+    elevation: 3,
   },
-  error: {
-    color: 'red',
+  instructions: {
+    fontSize: 14,
+    lineHeight: 20,
+  },
+  errorContainer: {
     position: 'absolute',
-    bottom: 20,
-    padding: 10,
-    backgroundColor: 'rgba(255, 255, 255, 0.8)',
-    borderRadius: 5,
-  }
+    top: '50%',
+    left: 20,
+    right: 20,
+    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+    padding: 20,
+    borderRadius: 10,
+    elevation: 5,
+    alignItems: 'center',
+  },
+  errorText: {
+    color: '#f44336',
+    fontSize: 16,
+    textAlign: 'center',
+    marginBottom: 10,
+  },
 });
 
 export default StreamScreen;
