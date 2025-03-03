@@ -47,6 +47,7 @@ const TestingScreen = () => {
     enabled: false,
     onMessage: (response) => {
       console.log('Server response:', response);
+
       if (frameAckResolveRef.current) {
         frameAckResolveRef.current(response);
         frameAckResolveRef.current = null;
@@ -161,7 +162,7 @@ const TestingScreen = () => {
       const framePath = `${outputFileUri}${i + 1}.png`;
 
       // Read the thumbnail image in base64 format
-      const thumbnail_base64 = await FileSystem.readAsStringAsync(framePath, {
+      const thumbnail = await FileSystem.readAsStringAsync(framePath, {
         encoding: FileSystem.EncodingType.Base64,
       });
 
@@ -173,7 +174,7 @@ const TestingScreen = () => {
       // Send the frame to the server
       const success = send({
         type: 'frame',
-        data: `data:image/jpeg;base64,${thumbnail_base64}`,
+        data: `data:image/jpeg;base64,${thumbnail}`,
         timestamp: Date.now(),
       });
 
@@ -188,9 +189,9 @@ const TestingScreen = () => {
       const response = await ackPromise;
       console.log('Frame', i + 1, 'acknowledged with response:', response);
 
-      setCurrentFrame(thumbnail_base64);
+      setCurrentFrame(thumbnail);
       setCurrentFrameNumber(i + 1);
-      setProgress(Math.min(100, (frameTime / duration) * 100));
+      setProgress((i / (estimatedTotalFrames - 1)) * 100);
     }
 
     console.log('Processing complete');
