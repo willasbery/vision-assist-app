@@ -80,11 +80,13 @@ async def websocket_endpoint(websocket: WebSocket):
                 logger.error("Invalid JSON received")
             except Exception as e:
                 logger.error(f"Error processing frame: {str(e)}")
-                await websocket.send_json({
-                    "type": "error",
-                    "message": str(e)
-                })
-                
+                try: 
+                    await websocket.send_json({
+                        "type": "error",
+                        "message": str(e)
+                    })
+                except:
+                    pass
     except WebSocketDisconnect:
         manager.disconnect(websocket)
 
