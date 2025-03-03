@@ -1,26 +1,20 @@
 import React, { useState, useEffect, useRef } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  SafeAreaView,
-  ScrollView,
-  Image,
-} from 'react-native';
+import { View, Text, StyleSheet, SafeAreaView, ScrollView } from 'react-native';
 import { Button, ButtonText, ButtonIcon } from '@/src/components/ui/button';
 import { Box } from '@/src/components/ui/box';
 import { VStack } from '@/src/components/ui/vstack';
 import { Spinner } from '@/src/components/ui/spinner';
 import * as ImagePicker from 'expo-image-picker';
-import { VideoView, createVideoPlayer } from 'expo-video';
+import { createVideoPlayer, VideoView } from 'expo-video';
 import { Ionicons } from '@expo/vector-icons';
 import Slider from '@react-native-community/slider';
 import ErrorPopup from '@/src/components/ErrorPopup';
 import { useWebSocket } from '@/src/hooks/useWebSocket';
 import { useServerIP } from '@/src/hooks/useServerIP';
 import { useFocusEffect } from '@react-navigation/native';
-import * as VideoThumbnails from 'expo-video-thumbnails';
 import * as FileSystem from 'expo-file-system';
+import { Image } from 'expo-image';
+import { FFmpegKit, ReturnCode } from 'ffmpeg-kit-react-native';
 
 const TestingScreen = () => {
   const [video, setVideo] = useState(null);
@@ -29,17 +23,17 @@ const TestingScreen = () => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState(null);
   const [isErrorVisible, setIsErrorVisible] = useState(false);
+
   const [progress, setProgress] = useState(0);
   const [totalFrames, setTotalFrames] = useState(0);
 
   const [currentFrame, setCurrentFrame] = useState(0);
-  const [currentFrameImage, setCurrentFrameImage] = useState(null);
   const [currentInstruction, setCurrentInstruction] = useState(null);
 
   const processingRef = useRef(false);
   const videoRef = useRef(null);
   const frameIntervalRef = useRef(null);
-  const processAllowedRef = useRef(true);
+  const frameAckResolveRef = useRef(null);
 
   const { serverIP } = useServerIP();
   const {
@@ -51,7 +45,11 @@ const TestingScreen = () => {
     enabled: false,
     onMessage: (response) => {
       console.log('Server response:', response);
-      processAllowedRef.current = true;
+      if (frameAckResolveRef.current) {
+        frameAckResolveRef.current(response);
+        frameAckResolveRef.current = null;
+      }
+
       setCurrentInstruction(response.data);
     },
   });
@@ -88,10 +86,8 @@ const TestingScreen = () => {
       if (!result.canceled && result.assets[0]) {
         const videoSource = result.assets[0]?.uri;
         setVideoSource(videoSource);
-        setProgress(0);
         setCurrentFrame(0);
         setTotalFrames(0);
-        setCurrentFrameImage(null);
       }
     } catch (error) {
       setError('Failed to select video');
@@ -106,110 +102,78 @@ const TestingScreen = () => {
     }
   }, [videoSource]);
 
-  const generateThumbnail = async (videoUri, timeInS) => {
-    try {
-      const timeInMs = timeInS * 1000;
-
-      const { uri } = await VideoThumbnails.getThumbnailAsync(videoUri, {
-        time: timeInMs,
-        quality: 1,
-      });
-
-      console.log('Grabbing frame from', timeInMs, timeInS);
-
-      // Convert thumbnail to base64
-      const base64 = await FileSystem.readAsStringAsync(uri, {
-        encoding: FileSystem.EncodingType.Base64,
-      });
-
-      return [uri, base64];
-    } catch (e) {
-      console.error('Error generating thumbnail:', e);
-      throw e;
-    }
-  };
-
   const processVideoFrames = async () => {
     if (!video || !serverIP || !videoSource) {
       setError('Please select a video first');
       return;
     }
 
-    setIsProcessing(true);
-    processingRef.current = true;
-    setProgress(0);
-    setCurrentFrame(0);
-    setCurrentFrameImage(null);
+    const duration = video.duration;
+    const frameInterval = 1 / fps;
+    const estimatedTotalFrames = Math.floor(duration / frameInterval);
+    setTotalFrames(estimatedTotalFrames);
 
-    try {
-      // Get video duration
-      const duration = video.duration;
-      const frameInterval = 1 / fps;
-      const estimatedTotalFrames = Math.floor(duration / frameInterval);
-      setTotalFrames(estimatedTotalFrames);
+    console.log('Video is', duration, 'seconds long');
+    console.log('Frame interval is', frameInterval, 'seconds');
+    console.log('Estimated total frames are', estimatedTotalFrames);
 
-      console.log(
-        `Video duration: ${duration}s, FPS: ${fps}, Total frames: ~${estimatedTotalFrames}`
-      );
+    const outputFileUri = `${FileSystem.documentDirectory}/thumbnail`;
+    console.log('Output file URI:', outputFileUri);
 
-      let currentTime = 0;
-      let frameCount = 0;
+    // Generate thumbnails for every frame using FFmpegKit
+    // FFmpegKit is deprecated, but as expo-video/expo-video-thumbnails
+    // are not working, I am using this instead
+    FFmpegKit.execute(
+      `-i ${videoSource} -vf fps=${fps} '${outputFileUri}%d.png'`
+    )
+      .then(async (session) => {
+        const returnCode = await session.getReturnCode();
 
-      const processNextFrame = async () => {
-        if (!processingRef.current || currentTime >= duration) {
-          stopProcessing();
-          return;
+        if (ReturnCode.isSuccess(returnCode)) {
+          console.log('Thumbnails generated successfully');
+        } else {
+          console.log('Error generating thumbnails:', returnCode);
         }
+      })
+      .catch((error) => {
+        console.error('Error generating thumbnails:', error);
+      });
 
-        try {
-          // Generate thumbnail for current time
-          const [uri, base64Frame] = await generateThumbnail(
-            videoSource,
-            currentTime
-          );
+    // Process each frame sequentially, awaiting the server response for each
+    for (let i = 0; i < estimatedTotalFrames; i++) {
+      const frameTime = i * frameInterval;
+      const framePath = `${outputFileUri}${i + 1}.png`;
 
-          // Update video view with the current frame being processed
-          setCurrentFrameImage(uri);
+      // Read the thumbnail image in base64 format
+      const thumbnail_base64 = await FileSystem.readAsStringAsync(framePath, {
+        encoding: FileSystem.EncodingType.Base64,
+      });
 
-          // Send frame to server
-          const success = send({
-            type: 'frame',
-            data: `data:image/jpeg;base64,${base64Frame}`,
-            timestamp: Date.now(),
-          });
+      // Create a promise that will be resolved when the server responds
+      const ackPromise = new Promise((resolve, reject) => {
+        frameAckResolveRef.current = resolve;
+      });
 
-          if (!success) {
-            throw new Error('Failed to send frame', success);
-          }
+      // Send the frame to the server
+      const success = send({
+        type: 'frame',
+        data: `data:image/jpeg;base64,${thumbnail_base64}`,
+        timestamp: Date.now(),
+      });
 
-          processAllowedRef.current = false;
+      if (!success) {
+        console.error('Failed to send frame');
+        // You could choose to reject the promise here if needed:
+        frameAckResolveRef.current = null;
+        continue;
+      }
 
-          // Wait until processAllowedRef.current is true
-          while (!processAllowedRef.current) {
-            await new Promise((resolve) => setTimeout(resolve, 100));
-          }
+      // Await the server response for this frame before proceeding
+      const response = await ackPromise;
+      console.log('Frame', i + 1, 'acknowledged with response:', response);
 
-          // Update progress
-          frameCount++;
-          setCurrentFrame(frameCount);
-          setProgress(Math.min(100, (currentTime / duration) * 100));
-
-          // Move to next frame
-          currentTime += frameInterval;
-          setTimeout(processNextFrame, 50);
-        } catch (error) {
-          console.error('Error processing frame:', error);
-          setError(`Error processing frame: ${error.message}`);
-          stopProcessing();
-        }
-      };
-
-      // Start processing
-      processNextFrame();
-    } catch (error) {
-      console.error('Error processing video:', error);
-      setError(`Error processing video: ${error.message}`);
-      stopProcessing();
+      setCurrentFrame(thumbnail_base64);
+      setProgress(Math.min(100, (frameTime / duration) * 100));
     }
   };
 
@@ -243,12 +207,16 @@ const TestingScreen = () => {
             </Button>
 
             {video &&
-              (isProcessing && currentFrameImage ? (
+              (currentFrame ? (
                 <>
                   <Image
                     style={styles.videoPreview}
-                    source={{ uri: currentFrameImage }}
-                    resizeMode="contain"
+                    placeholder={'Testing'}
+                    source={{
+                      uri: `data:image/jpeg;base64,${currentFrame}`,
+                    }}
+                    contentFit="contain"
+                    transition={100}
                   />
                   <Text>{currentInstruction}</Text>
                 </>

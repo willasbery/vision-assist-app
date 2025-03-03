@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { loadServerIP } from "@/src/common/serverManager";
+import { loadServerIP } from '@/src/common/serverManager';
 
 export const useServerIP = (navigation) => {
   const [serverIP, setServerIP] = useState(null);
@@ -13,8 +13,8 @@ export const useServerIP = (navigation) => {
         setError(null);
       }
     } catch (error) {
-      console.error("Error loading server IP:", error);
-      setError("Failed to load server IP");
+      console.error('Error loading server IP:', error);
+      setError('Failed to load server IP');
     }
   };
 
@@ -24,7 +24,7 @@ export const useServerIP = (navigation) => {
 
   useEffect(() => {
     if (navigation) {
-      const unsubscribe = navigation.addListener("focus", loadInitialIP);
+      const unsubscribe = navigation.addListener('focus', loadInitialIP);
       return unsubscribe;
     }
   }, [navigation]);
@@ -34,6 +34,6 @@ export const useServerIP = (navigation) => {
     setServerIP,
     error,
     setError,
-    loadInitialIP
+    loadInitialIP,
   };
-}; 
+};
