@@ -18,6 +18,7 @@ import { useFocusEffect } from '@react-navigation/native';
 
 import ErrorPopup from '@/src/components/ErrorPopup';
 import NoServerIP from '@/src/components/NoServerIP';
+import DirectionalArrow from '@/src/components/DirectionalArrow';
 import { convertFrameToBase64 } from '@/src/utils/convertFrameToBase64';
 import { playAudio, unloadSounds } from '@/src/utils/audioPlayer';
 import { useWebSocket } from '@/src/hooks/useWebSocket';
@@ -91,8 +92,8 @@ const StreamScreen = ({ navigation }) => {
         }
 
         console.log('Instruction  received:', response.data);
-        setInstruction(response.data);
         playAudio(response.data);
+        setInstruction(response.data);
 
         lastInstructionTimeRef.current = now;
       }
@@ -233,23 +234,43 @@ const StreamScreen = ({ navigation }) => {
     <SafeAreaView
       style={[styles.container, { backgroundColor: colors.background }]}
     >
-      <Camera
-        ref={cameraRef}
-        style={StyleSheet.absoluteFill}
-        device={device}
-        format={format}
-        isActive={!error}
-        frameProcessor={frameProcessor}
-        enableZoomGesture={true}
-        onError={(error) => console.error('Camera error:', error)}
-        androidPreviewViewType="surface-view"
-      >
-        <View style={styles.instructionsContainer}>
-          <Text style={styles.instruction}>
-            "Current Instruction: ${instruction}"
-          </Text>
+      <View style={StyleSheet.absoluteFill}>
+        <Camera
+          ref={cameraRef}
+          style={StyleSheet.absoluteFill}
+          device={device}
+          format={format}
+          isActive={!error}
+          frameProcessor={frameProcessor}
+          enableZoomGesture={true}
+          onError={(error) => console.error('Camera error:', error)}
+          androidPreviewViewType="surface-view"
+        />
+        <View style={styles.overlayContainer}>
+          <DirectionalArrow direction={instruction} />
+          <View
+            style={[
+              styles.instructionsContainer,
+              {
+                backgroundColor: highContrast
+                  ? 'rgba(0, 0, 0, 0.9)'
+                  : 'rgba(255, 255, 255, 0.9)',
+              },
+            ]}
+          >
+            <Text
+              style={[
+                styles.instruction,
+                {
+                  color: highContrast ? colors.text.light : colors.text.dark900,
+                },
+              ]}
+            >
+              Current Instruction: {instruction || 'Waiting...'}
+            </Text>
+          </View>
         </View>
-      </Camera>
+      </View>
 
       <ErrorPopup
         isVisible={isErrorVisible}
@@ -259,7 +280,7 @@ const StreamScreen = ({ navigation }) => {
         onClose={() => setIsErrorVisible(false)}
       />
 
-      <AccessibleButton
+      {/* <AccessibleButton
         size="lg"
         variant="solid"
         action="primary"
@@ -270,7 +291,7 @@ const StreamScreen = ({ navigation }) => {
         <ButtonText style={{ color: colors.text.light }}>
           Grant Permission
         </ButtonText>
-      </AccessibleButton>
+      </AccessibleButton> */}
     </SafeAreaView>
   );
 };
@@ -280,7 +301,14 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#fff',
+  },
+  overlayContainer: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    zIndex: 1,
   },
   message: {
     fontSize: 16,
@@ -305,14 +333,16 @@ const styles = StyleSheet.create({
     top: 100,
     left: 20,
     right: 20,
-    backgroundColor: 'rgba(255, 255, 255, 0.9)',
     padding: 15,
     borderRadius: 10,
     elevation: 3,
+    zIndex: 2,
   },
   instruction: {
     fontSize: 14,
     lineHeight: 20,
+    textAlign: 'center',
+    fontFamily: 'Geist-Regular',
   },
   errorContainer: {
     position: 'absolute',
