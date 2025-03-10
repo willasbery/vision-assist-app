@@ -1,7 +1,9 @@
-import React, { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { Text, StyleSheet, View } from 'react-native';
 import {
   Camera,
+  runAsync,
+  runAtTargetFps,
   useCameraDevice,
   useCameraFormat,
   useCameraPermission,
@@ -22,8 +24,9 @@ import { useWebSocket } from '@/src/hooks/useWebSocket';
 import { useServerIP } from '@/src/hooks/useServerIP';
 
 const StreamScreen = ({ navigation }) => {
-  const [instructions, setInstructions] = useState(null);
+  const [instruction, setInstruction] = useState(null);
   const [isErrorVisible, setIsErrorVisible] = useState(false);
+
   const processingRef = useRef(false);
   const cameraRef = useRef(null);
   const mountedAtRef = useRef(0);
@@ -85,6 +88,7 @@ const StreamScreen = ({ navigation }) => {
         }
 
         console.log('Instruction  received:', response.data);
+        setInstruction(response.data);
         playAudio(response.data);
 
         lastInstructionTimeRef.current = now;
@@ -173,19 +177,60 @@ const StreamScreen = ({ navigation }) => {
     }
   });
 
-  const frameProcessor = useFrameProcessor(
-    (frame) => {
+  // const frameProcessor = useFrameProcessor(
+  //   (frame) => {
+  //     'worklet';
+
+  //     const imageAsBase64 = convertFrameToBase64(frame);
+
+  //     if (imageAsBase64) {
+  //       onConversion(imageAsBase64);
+  //     }
+  //   },
+
+  //   [onConversion]
+  // );
+
+  const frameProcessor = useFrameProcessor((frame) => {
+    'worklet';
+
+    runAtTargetFps(10, () => {
       'worklet';
+
       const imageAsBase64 = convertFrameToBase64(frame);
+
       if (imageAsBase64) {
         onConversion(imageAsBase64);
       }
-    },
-    [onConversion]
-  );
+    });
+  });
+
+  // runAsync(frame, () => {
+  //   'worklet';
+
+  //   console.log('Frame processor 2');
+
+  //   // const imageAsBase64 = convertFrameToBase64(frame);
+
+  //   // if (imageAsBase64) {
+  //   //   if (!processingRef.current) {
+  //   //     processingRef.current = true;
+  //   //     const success = send({
+  //   //       type: 'frame',
+  //   //       data: `data:image/jpeg;base64,${imageAsBase64}`,
+  //   //       timestamp: Date.now(),
+  //   //     });
+
+  //   //     if (!success) {
+  //   //       processingRef.current = false;
+  //   //     }
+  //   //   }
+  //   // }
+  // });
+  // });
 
   useFocusEffect(
-    React.useCallback(() => {
+    useCallback(() => {
       setEnabled(true);
       return () => setEnabled(false);
     }, [setEnabled])
@@ -227,20 +272,13 @@ const StreamScreen = ({ navigation }) => {
         enableZoomGesture={true}
         onError={(error) => console.error('Camera error:', error)}
         androidPreviewViewType="surface-view"
-      />
-
-      {instructions && (
+      >
         <View style={styles.instructionsContainer}>
-          <Text style={styles.instructions}>
-            {instructions.map(
-              (instruction, index) =>
-                `${index + 1}. ${instruction.instruction_type}: ${
-                  instruction.direction
-                } (${instruction.danger} danger)\n`
-            )}
+          <Text style={styles.instruction}>
+            "Current Instruction: ${instruction}"
           </Text>
         </View>
-      )}
+      </Camera>
 
       <ErrorPopup
         isVisible={isErrorVisible}
@@ -288,7 +326,7 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     elevation: 3,
   },
-  instructions: {
+  instruction: {
     fontSize: 14,
     lineHeight: 20,
   },
