@@ -210,6 +210,7 @@ const SettingsScreen = ({ navigation }) => {
                         fontFamily: 'Geist-Regular',
                         fontSize: fontSize * 16,
                         height: 'fit-content',
+                        color: colors.primary,
                       }}
                     />
                   </Input>
@@ -252,7 +253,7 @@ const SettingsScreen = ({ navigation }) => {
             }}
           >
             <ButtonText
-              style={{ fontFamily: 'Geist-SemiBold', color: colors.text.light }}
+              style={{ fontFamily: 'Geist-SemiBold', color: colors.background }}
             >
               {isSaving ? 'Saving...' : 'Save Settings'}
             </ButtonText>
@@ -266,7 +267,6 @@ const SettingsScreen = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
     paddingTop: -32,
   },
   scrollContent: {

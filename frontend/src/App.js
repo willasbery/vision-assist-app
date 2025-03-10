@@ -48,8 +48,6 @@ function TabNavigator() {
   const { highContrast, fontSize } = useAccessibility();
   const colors = getColors(highContrast);
 
-  console.log(fontSize);
-
   return (
     <Tab.Navigator
       screenOptions={({ route }) => ({
@@ -63,7 +61,13 @@ function TabNavigator() {
             : 'settings-outline';
           // Adjust icon size to be slightly smaller relative to the container
           const scaledSize = Math.min(24 * fontSize * 0.8, size * fontSize);
-          return <Ionicons name={iconName} size={scaledSize} color={color} />;
+          return (
+            <Ionicons
+              name={iconName}
+              size={scaledSize}
+              color={colors.primary}
+            />
+          );
         },
         tabBarStyle: {
           height: fontSize <= 1 ? 60 * fontSize : 60 * fontSize * 0.8, // Increased height further to accommodate everything
@@ -73,6 +77,8 @@ function TabNavigator() {
           fontFamily: 'Geist-SemiBold',
           fontSize: 12 * fontSize,
         },
+        tabBarActiveTintColor: colors.primary,
+        tabBarInactiveTintColor: colors.inactiveTab,
       })}
     >
       <Tab.Screen
@@ -100,7 +106,6 @@ function MainApp() {
   const { highContrast } = useAccessibility();
   const colors = getColors(highContrast);
 
-  // 1. First useEffect - Splash Screen
   useEffect(() => {
     async function prepare() {
       await SplashScreen.preventAutoHideAsync();
@@ -108,7 +113,6 @@ function MainApp() {
     prepare();
   }, []);
 
-  // 2. Second useEffect - Sound Loading
   useEffect(() => {
     const loadSounds = async () => {
       try {
@@ -124,7 +128,6 @@ function MainApp() {
     };
   }, []);
 
-  // 3. Third useEffect - Hide Splash Screen after fonts load
   useEffect(() => {
     if (fontsLoaded) {
       SplashScreen.hideAsync();

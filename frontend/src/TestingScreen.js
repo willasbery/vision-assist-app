@@ -350,7 +350,6 @@ const TestingScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
   },
   scrollContent: {
     flexGrow: 1,
@@ -365,19 +364,16 @@ const styles = StyleSheet.create({
   label: {
     fontSize: 16,
     marginBottom: 8,
-    color: '#333',
     fontFamily: 'Geist-Medium',
   },
   helperText: {
     fontSize: 12,
     marginTop: 4,
-    color: '#666',
     fontFamily: 'Geist-Regular',
   },
   processingText: {
     marginTop: 8,
     fontSize: 14,
-    color: '#666',
     fontFamily: 'Geist-Regular',
   },
   progressText: {

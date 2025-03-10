@@ -8,6 +8,7 @@ export const colorSchemes = {
       dark900: '#1f2937', // Very dark gray
       dark500: '#6b7280', // Medium gray
       light: '#ffffff', // White
+      inactiveTab: '#1f2938',
     },
     error: '#ef4444', // Red
     success: '#10b981', // Green
@@ -15,18 +16,19 @@ export const colorSchemes = {
     info: '#3b82f6', // Blue
   },
   highContrast: {
-    primary: '#0000ff', // Pure blue
-    secondary: '#000000', // Black
-    background: '#ffffff', // White
+    primary: '#ffffff', // White
+    secondary: '#ffffff', // White
+    background: '#000000', // Black
     text: {
-      dark900: '#000000', // Black
-      dark500: '#000000', // Black
+      dark900: '#ffffff', // White
+      dark500: '#ffffff', // White
       light: '#ffffff', // White
+      inactiveTab: '#1f2938',
     },
     error: '#ff0000', // Pure red
-    success: '#008000', // Pure green
-    warning: '#ff8000', // Pure orange
-    info: '#0000ff', // Pure blue
+    success: '#00ff00', // Bright green
+    warning: '#ffff00', // Bright yellow
+    info: '#00ffff', // Cyan
   },
 };
 

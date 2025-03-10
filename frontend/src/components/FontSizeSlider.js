@@ -13,9 +13,12 @@ import {
 import { ChevronDownIcon } from '@/src/components/ui/icon';
 import { CustomText } from '@/src/components/CustomText';
 import { useAccessibility } from '@/src/hooks/useAccessibility';
+import { getColors } from '@/src/theme/colors';
 
 const FontSizeSlider = () => {
-  const { fontSizeKey, setFontSize, fontSize } = useAccessibility();
+  const { fontSizeKey, setFontSize, fontSize, highContrast } =
+    useAccessibility();
+  const colors = getColors(highContrast);
 
   const handleValueChange = (value) => {
     switch (value) {
@@ -52,7 +55,7 @@ const FontSizeSlider = () => {
           <SelectInput
             placeholder="Select text size"
             className="flex-1"
-            style={{ fontSize: 16 * fontSize }}
+            style={{ fontSize: 16 * fontSize, color: colors.primary }}
           />
           <SelectIcon className="mr-2" as={ChevronDownIcon} />
         </SelectTrigger>

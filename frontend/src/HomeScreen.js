@@ -379,7 +379,6 @@ const HomeScreen = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
   },
   scrollContent: {
     flexGrow: 1,
@@ -387,7 +386,6 @@ const styles = StyleSheet.create({
   message: {
     fontSize: 16,
     textAlign: 'center',
-    color: '#666',
     fontFamily: 'Geist-Regular',
   },
   status: {
@@ -405,7 +403,6 @@ const styles = StyleSheet.create({
     color: '#f44336',
   },
   errorText: {
-    color: '#f44336',
     fontSize: 16,
     textAlign: 'center',
     fontFamily: 'Geist-Regular',
