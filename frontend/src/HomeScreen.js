@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Text, Image, StyleSheet, ScrollView, Vibration } from 'react-native';
 import { Center } from '@/src/components/ui/center';
-import { Button, ButtonText, ButtonIcon } from '@/src/components/ui/button';
+import { ButtonText, ButtonIcon } from '@/src/components/ui/button';
 import { Box } from '@/src/components/ui/box';
 import { VStack } from '@/src/components/ui/vstack';
 import { Spinner } from '@/src/components/ui/spinner';
@@ -17,6 +17,10 @@ import ErrorPopup from '@/src/components/ErrorPopup';
 import { useWebSocket } from '@/src/hooks/useWebSocket';
 import { useServerIP } from '@/src/hooks/useServerIP';
 import NoServerIP from '@/src/components/NoServerIP';
+import { useAccessibility } from '@/src/hooks/useAccessibility';
+import { getColors } from '@/src/theme/colors';
+import AccessibleButton from '@/src/components/AccessibleButton';
+import { CustomText } from '@/src/components/CustomText';
 
 const HomeScreen = ({ navigation }) => {
   const [lastImage, setLastImage] = useState(null);
@@ -25,6 +29,10 @@ const HomeScreen = ({ navigation }) => {
   const [customError, setCustomError] = useState(null);
 
   const [developmentMode, setDevelopmentMode] = useState(false);
+
+  // Get accessibility context
+  const { highContrast, fontSize } = useAccessibility();
+  const colors = getColors(highContrast);
 
   const { serverIP, error: ipError } = useServerIP(navigation);
   const {
@@ -165,7 +173,9 @@ const HomeScreen = ({ navigation }) => {
   }
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView
+      style={[styles.container, { backgroundColor: colors.background }]}
+    >
       <ScrollView contentContainerStyle={styles.scrollContent}>
         <Box className="px-4 py-10 gap-y-10">
           <VStack
@@ -203,13 +213,13 @@ const HomeScreen = ({ navigation }) => {
                 flexDirection="column"
                 justifyContent="space-between"
               >
-                <Button
-                  className="bg-blue-500 items-center"
+                <AccessibleButton
                   size="xl"
                   variant="solid"
                   action="primary"
                   onPress={() => handleImageSelection(false)}
-                  disabled={loading}
+                  isDisabled={loading || !serverIP}
+                  style={{ backgroundColor: colors.primary }}
                 >
                   <ButtonIcon
                     as={Ionicons}
@@ -217,18 +227,23 @@ const HomeScreen = ({ navigation }) => {
                     size={16}
                     style={{ marginRight: 10 }}
                   />
-                  <ButtonText style={{ fontFamily: 'Geist-Regular' }}>
+                  <ButtonText
+                    style={{
+                      color: colors.text.light,
+                      fontFamily: 'Geist-Regular',
+                    }}
+                  >
                     Pick from Gallery
                   </ButtonText>
-                </Button>
+                </AccessibleButton>
 
-                <Button
-                  className="bg-blue-500 items-center"
+                <AccessibleButton
                   size="xl"
                   variant="solid"
                   action="primary"
                   onPress={() => handleImageSelection(true)}
-                  disabled={loading}
+                  isDisabled={loading || !serverIP}
+                  style={{ backgroundColor: colors.primary }}
                 >
                   <ButtonIcon
                     as={Ionicons}
@@ -236,18 +251,23 @@ const HomeScreen = ({ navigation }) => {
                     size={16}
                     style={{ marginRight: 10 }}
                   />
-                  <ButtonText style={{ fontFamily: 'Geist-Regular' }}>
+                  <ButtonText
+                    style={{
+                      color: colors.text.light,
+                      fontFamily: 'Geist-Regular',
+                    }}
+                  >
                     Take Picture
                   </ButtonText>
-                </Button>
+                </AccessibleButton>
 
-                <Button
-                  className="bg-blue-500 items-center"
+                <AccessibleButton
                   size="xl"
                   variant="solid"
                   action="primary"
                   onPress={() => navigation.navigate('Stream')}
-                  disabled={loading}
+                  isDisabled={loading || !serverIP}
+                  style={{ backgroundColor: colors.primary }}
                 >
                   <ButtonIcon
                     as={Ionicons}
@@ -255,16 +275,22 @@ const HomeScreen = ({ navigation }) => {
                     size={16}
                     style={{ marginRight: 10 }}
                   />
-                  <ButtonText style={{ fontFamily: 'Geist-Regular' }}>
+                  <ButtonText
+                    style={{
+                      color: colors.text.light,
+                      fontFamily: 'Geist-Regular',
+                    }}
+                  >
                     Stream Video
                   </ButtonText>
-                </Button>
-                <Button
-                  className="bg-blue-500 items-center"
+                </AccessibleButton>
+                <AccessibleButton
                   size="xl"
                   variant="solid"
                   action="primary"
                   onPress={() => navigation.navigate('Testing')}
+                  isDisabled={loading || !serverIP}
+                  style={{ backgroundColor: colors.primary }}
                 >
                   <ButtonIcon
                     as={Ionicons}
@@ -272,10 +298,15 @@ const HomeScreen = ({ navigation }) => {
                     size={16}
                     style={{ marginRight: 10 }}
                   />
-                  <ButtonText style={{ fontFamily: 'Geist-Regular' }}>
+                  <ButtonText
+                    style={{
+                      color: colors.text.light,
+                      fontFamily: 'Geist-Regular',
+                    }}
+                  >
                     Testing
                   </ButtonText>
-                </Button>
+                </AccessibleButton>
               </VStack>
 
               {loading && (
@@ -310,13 +341,13 @@ const HomeScreen = ({ navigation }) => {
             </>
           ) : (
             <VStack>
-              <Button
-                className="bg-blue-500 items-center h-32"
+              <AccessibleButton
                 size="xl"
                 variant="solid"
                 action="primary"
                 onPress={() => navigation.navigate('Stream')}
-                disabled={loading}
+                isDisabled={loading || !serverIP}
+                style={{ backgroundColor: colors.primary }}
               >
                 <ButtonIcon
                   as={Ionicons}
@@ -328,11 +359,15 @@ const HomeScreen = ({ navigation }) => {
                   }}
                 />
                 <ButtonText
-                  style={{ fontFamily: 'Geist-Regular', fontSize: 24 }}
+                  style={{
+                    fontFamily: 'Geist-Regular',
+                    fontSize: 24,
+                    color: colors.text.light,
+                  }}
                 >
                   Start Processing
                 </ButtonText>
-              </Button>
+              </AccessibleButton>
             </VStack>
           )}
         </Box>

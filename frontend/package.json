@@ -10,11 +10,12 @@
   },
   "dependencies": {
     "@babel/plugin-transform-template-literals": "^7.26.8",
-    "@expo/html-elements": "^0.11.2",
+    "@expo/html-elements": "^0.4.2",
     "@expo/vector-icons": "^14.0.2",
     "@gluestack-style/animation-resolver": "^1.0.4",
     "@gluestack-style/legend-motion-animation-driver": "^1.0.3",
     "@gluestack-style/react": "^1.0.57",
+    "@gluestack-ui/actionsheet": "^0.2.51",
     "@gluestack-ui/alert": "^0.1.16",
     "@gluestack-ui/button": "^1.0.8",
     "@gluestack-ui/config": "^1.1.20",
@@ -26,6 +27,8 @@
     "@gluestack-ui/modal": "^0.1.35",
     "@gluestack-ui/nativewind-utils": "^1.0.26",
     "@gluestack-ui/overlay": "^0.1.16",
+    "@gluestack-ui/select": "^0.1.31",
+    "@gluestack-ui/slider": "^0.1.31",
     "@gluestack-ui/spinner": "^0.1.15",
     "@gluestack-ui/switch": "^0.1.23",
     "@gluestack-ui/toast": "^1.0.8",
@@ -75,5 +78,8 @@
     "@react-native-community/cli": "^15.1.3",
     "jscodeshift": "^0.15.2"
   },
-  "private": true
+  "private": true,
+  "overrides": {
+    "@react-aria/utils": "3.27.0"
+  }
 }

@@ -10,18 +10,17 @@ export function convertFrameToBase64(frame, config) {
   if (plugin === null) throw new Error('Plugin not initialized');
 
   if (config) {
-    let options = {};
+    const options = {};
 
-    if (config.width != undefined) {
+    if (config.width !== undefined) {
       options.width = config.width;
     }
 
-    if (config.height != undefined) {
+    if (config.height !== undefined) {
       options.height = config.height;
     }
 
     return plugin.call(frame, options);
-  } else {
-    return plugin.call(frame);
   }
+  return plugin.call(frame);
 }

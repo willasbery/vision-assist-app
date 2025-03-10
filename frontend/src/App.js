@@ -12,6 +12,11 @@ import * as SplashScreen from 'expo-splash-screen';
 
 import { useFonts } from '@/src/hooks/useFonts';
 import { typography } from '@/src/theme/typography';
+import { getColors } from '@/src/theme/colors';
+import {
+  AccessibilityProvider,
+  useAccessibility,
+} from '@/src/hooks/useAccessibility';
 
 import HomeScreen from '@/src/HomeScreen';
 import SettingsScreen from '@/src/SettingsScreen';
@@ -20,20 +25,31 @@ import TestingScreen from '@/src/TestingScreen';
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
 
-// Common header options
-const commonHeaderOptions = {
-  headerStyle: {
-    backgroundColor: '#3b82f6',
-  },
-  headerTintColor: '#fff',
-  headerBackTitleVisible: false,
-  headerTitleStyle: {
-    fontFamily: 'Geist-SemiBold',
-  },
+// Common header options with accessibility support
+const CommonHeaderOptions = () => {
+  const { highContrast } = useAccessibility();
+  const colors = getColors(highContrast);
+
+  return {
+    headerStyle: {
+      backgroundColor: colors.primary,
+      // height: 60 * 1.5 * fontSize,
+    },
+    headerTintColor: colors.text.light,
+    headerBackTitleVisible: false,
+    headerTitleStyle: {
+      fontFamily: 'Geist-SemiBold',
+    },
+  };
 };
 
-// Tab navigator component
+// Tab navigator component with accessibility support
 function TabNavigator() {
+  const { highContrast, fontSize } = useAccessibility();
+  const colors = getColors(highContrast);
+
+  console.log(fontSize);
+
   return (
     <Tab.Navigator
       screenOptions={({ route }) => ({
@@ -45,18 +61,17 @@ function TabNavigator() {
             : route.name === 'Home'
             ? 'home-outline'
             : 'settings-outline';
-          return <Ionicons name={iconName} size={size} color={color} />;
+          // Adjust icon size to be slightly smaller relative to the container
+          const scaledSize = Math.min(24 * fontSize * 0.8, size * fontSize);
+          return <Ionicons name={iconName} size={scaledSize} color={color} />;
         },
-        tabBarActiveTintColor: '#3b82f6',
-        tabBarInactiveTintColor: 'gray',
-        headerShown: false,
-        animationEnabled: false,
         tabBarStyle: {
-          height: 60,
+          height: fontSize <= 1 ? 60 * fontSize : 60 * fontSize * 0.8, // Increased height further to accommodate everything
+          backgroundColor: colors.background,
         },
         tabBarLabelStyle: {
-          // color: '#fff',
           fontFamily: 'Geist-SemiBold',
+          fontSize: 12 * fontSize,
         },
       })}
     >
@@ -65,6 +80,7 @@ function TabNavigator() {
         component={HomeScreen}
         options={{
           title: 'Home',
+          headerShown: false,
         }}
       />
       <Tab.Screen
@@ -78,8 +94,11 @@ function TabNavigator() {
   );
 }
 
-export default function App() {
+// Main app component with accessibility provider
+function MainApp() {
   const fontsLoaded = useFonts();
+  const { highContrast } = useAccessibility();
+  const colors = getColors(highContrast);
 
   // 1. First useEffect - Splash Screen
   useEffect(() => {
@@ -123,6 +142,15 @@ export default function App() {
         tokens: {
           fonts: typography.fonts,
           fontConfig: typography.fontConfig,
+          colors: {
+            primary: colors.primary,
+            secondary: colors.secondary,
+            background: colors.background,
+            textDark900: colors.text.dark900,
+            textDark500: colors.text.dark500,
+            textLight: colors.text.light,
+            error700: colors.error,
+          },
         },
       }}
     >
@@ -137,22 +165,32 @@ export default function App() {
             <Stack.Screen
               name="Stream"
               component={StreamScreen}
-              options={{
+              options={({ navigation }) => ({
                 title: 'Stream',
-                ...commonHeaderOptions,
-              }}
+                ...CommonHeaderOptions(),
+              })}
             />
             <Stack.Screen
               name="Testing"
               component={TestingScreen}
-              options={{
+              options={({ navigation }) => ({
                 title: 'Testing',
-              }}
+                ...CommonHeaderOptions(),
+              })}
             />
           </Stack.Navigator>
         </NavigationContainer>
         <StatusBar style="light" />
       </SafeAreaProvider>
     </GluestackUIProvider>
+  );
+}
+
+// Export the app with accessibility provider
+export default function App() {
+  return (
+    <AccessibilityProvider>
+      <MainApp />
+    </AccessibilityProvider>
   );
 }

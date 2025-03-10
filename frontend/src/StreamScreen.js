@@ -22,6 +22,9 @@ import { convertFrameToBase64 } from '@/src/utils/convertFrameToBase64';
 import { playAudio, unloadSounds } from '@/src/utils/audioPlayer';
 import { useWebSocket } from '@/src/hooks/useWebSocket';
 import { useServerIP } from '@/src/hooks/useServerIP';
+import { useAccessibility } from '@/src/hooks/useAccessibility';
+import { getColors } from '@/src/theme/colors';
+import AccessibleButton from '@/src/components/AccessibleButton';
 
 const StreamScreen = ({ navigation }) => {
   const [instruction, setInstruction] = useState(null);
@@ -177,20 +180,6 @@ const StreamScreen = ({ navigation }) => {
     }
   });
 
-  // const frameProcessor = useFrameProcessor(
-  //   (frame) => {
-  //     'worklet';
-
-  //     const imageAsBase64 = convertFrameToBase64(frame);
-
-  //     if (imageAsBase64) {
-  //       onConversion(imageAsBase64);
-  //     }
-  //   },
-
-  //   [onConversion]
-  // );
-
   const frameProcessor = useFrameProcessor((frame) => {
     'worklet';
 
@@ -205,36 +194,16 @@ const StreamScreen = ({ navigation }) => {
     });
   });
 
-  // runAsync(frame, () => {
-  //   'worklet';
-
-  //   console.log('Frame processor 2');
-
-  //   // const imageAsBase64 = convertFrameToBase64(frame);
-
-  //   // if (imageAsBase64) {
-  //   //   if (!processingRef.current) {
-  //   //     processingRef.current = true;
-  //   //     const success = send({
-  //   //       type: 'frame',
-  //   //       data: `data:image/jpeg;base64,${imageAsBase64}`,
-  //   //       timestamp: Date.now(),
-  //   //     });
-
-  //   //     if (!success) {
-  //   //       processingRef.current = false;
-  //   //     }
-  //   //   }
-  //   // }
-  // });
-  // });
-
   useFocusEffect(
     useCallback(() => {
       setEnabled(true);
       return () => setEnabled(false);
     }, [setEnabled])
   );
+
+  // Add accessibility context
+  const { highContrast, fontSize } = useAccessibility();
+  const colors = getColors(highContrast);
 
   if (!serverIP) {
     return (
@@ -261,7 +230,9 @@ const StreamScreen = ({ navigation }) => {
   }
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView
+      style={[styles.container, { backgroundColor: colors.background }]}
+    >
       <Camera
         ref={cameraRef}
         style={StyleSheet.absoluteFill}
@@ -287,6 +258,19 @@ const StreamScreen = ({ navigation }) => {
         onSettings={() => navigation.navigate('Settings')}
         onClose={() => setIsErrorVisible(false)}
       />
+
+      <AccessibleButton
+        size="lg"
+        variant="solid"
+        action="primary"
+        onPress={requestPermission}
+        isDisabled={!hasPermission}
+        style={{ backgroundColor: colors.primary }}
+      >
+        <ButtonText style={{ color: colors.text.light }}>
+          Grant Permission
+        </ButtonText>
+      </AccessibleButton>
     </SafeAreaView>
   );
 };
