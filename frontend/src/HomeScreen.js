@@ -1,5 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { Text, Image, StyleSheet, ScrollView, Vibration } from 'react-native';
+import {
+  Text,
+  Image,
+  StyleSheet,
+  ScrollView,
+  Vibration,
+  View,
+} from 'react-native';
 import { Center } from '@/src/components/ui/center';
 import { ButtonText, ButtonIcon } from '@/src/components/ui/button';
 import { Box } from '@/src/components/ui/box';
@@ -27,6 +34,7 @@ const HomeScreen = ({ navigation }) => {
   const [loading, setLoading] = useState(false);
   const [isErrorVisible, setIsErrorVisible] = useState(false);
   const [customError, setCustomError] = useState(null);
+  const [instruction, setInstruction] = useState(null);
 
   const [developmentMode, setDevelopmentMode] = useState(false);
 
@@ -43,9 +51,19 @@ const HomeScreen = ({ navigation }) => {
     setEnabled,
   } = useWebSocket(serverIP, {
     onMessage: (response) => {
-      if (response.type === 'confirmation') {
-        setLastImage(`http://${serverIP}:8000${response.url}`);
+      if (response.type !== 'success') {
+        return;
       }
+
+      if (response.data.length > 0) {
+        console.log('Instruction received:', response.data);
+
+        playAudio(response.data);
+        setInstruction(response.data);
+      } else {
+        setInstruction('No instruction received');
+      }
+
       setLoading(false);
     },
     enabled: false,
@@ -157,6 +175,8 @@ const HomeScreen = ({ navigation }) => {
     if (!success) {
       setCustomError('Failed to send image. Please check your connection.');
       setLoading(false);
+    } else {
+      setLastImage(base64Image);
     }
   };
 
@@ -326,16 +346,45 @@ const HomeScreen = ({ navigation }) => {
                 onClose={() => setIsErrorVisible(false)}
               />
 
-              {lastImage && (
+              {!loading && lastImage && (
                 <Box mt="$5" alignItems="center">
                   <Text style={styles.message} mb="$2">
                     Last Sent Image:
                   </Text>
                   <Image
-                    source={{ uri: lastImage }}
+                    source={{
+                      uri: `data:image/jpeg;base64,${lastImage}`,
+                    }}
                     alt="Last sent image"
                     style={styles.image}
                   />
+
+                  {instruction && (
+                    <View
+                      style={[
+                        styles.instructionsContainer,
+                        {
+                          backgroundColor: highContrast
+                            ? 'rgba(0, 0, 0, 0.9)'
+                            : 'rgba(255, 255, 255, 0.9)',
+                          marginTop: 10,
+                        },
+                      ]}
+                    >
+                      <Text
+                        style={[
+                          styles.instruction,
+                          {
+                            color: highContrast
+                              ? colors.text.light
+                              : colors.text.dark900,
+                          },
+                        ]}
+                      >
+                        Instruction: {instruction}
+                      </Text>
+                    </View>
+                  )}
                 </Box>
               )}
             </>
@@ -413,6 +462,18 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     backgroundColor: '#f5f5f5',
     resizeMode: 'contain',
+  },
+  instructionsContainer: {
+    width: '100%',
+    padding: 15,
+    borderRadius: 10,
+    elevation: 3,
+  },
+  instruction: {
+    fontSize: 16,
+    lineHeight: 22,
+    textAlign: 'center',
+    fontFamily: 'Geist-Regular',
   },
 });
 
