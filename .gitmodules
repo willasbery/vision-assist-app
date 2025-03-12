@@ -1,3 +1,4 @@
 [submodule "backend/vision_assist"]
 	path = backend/vision_assist
-	url = https://github.com/willasbery/vision-assist
+	url = https://github.com/willasbery/vision-assist.git
+	branch = submission
