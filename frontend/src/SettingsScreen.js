@@ -2,13 +2,14 @@ import React, { useState, useEffect } from 'react';
 import { StyleSheet, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Button, ButtonText } from '@/src/components/ui/button';
+import { ButtonText } from '@/src/components/ui/button';
 import { Box } from '@/src/components/ui/box';
 import { VStack } from '@/src/components/ui/vstack';
 import { HStack } from '@/src/components/ui/hstack';
 import { Input, InputField } from '@/src/components/ui/input';
 import { Text } from '@/src/components/ui/text';
 import { Switch } from '@/src/components/ui/switch';
+import { Divider } from '@/src/components/ui/divider';
 import {
   FormControl,
   FormControlHelper,
@@ -17,6 +18,10 @@ import {
 import { loadServerIP, saveServerIP } from '@/src/common/serverManager';
 import { CustomText } from '@/src/components/CustomText';
 import { useServerIP } from '@/src/hooks/useServerIP';
+import { useAccessibility } from '@/src/hooks/useAccessibility';
+import FontSizeSlider from '@/src/components/FontSizeSlider';
+import AccessibleButton from '@/src/components/AccessibleButton';
+import { getColors } from '@/src/theme/colors';
 
 const SettingsScreen = ({ navigation }) => {
   const [serverIP, setServerIP] = useState('');
@@ -27,6 +32,10 @@ const SettingsScreen = ({ navigation }) => {
 
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState(null);
+
+  // Get accessibility context
+  const { highContrast, setHighContrast, fontSize } = useAccessibility();
+  const colors = getColors(highContrast);
 
   useEffect(() => {
     loadInitialSettings();
@@ -72,46 +81,44 @@ const SettingsScreen = ({ navigation }) => {
     }
   };
 
-  const handleRetry = () => {
-    setError(null);
-    wsManager.current?.retry();
-  };
-
   return (
-    <SafeAreaView style={styles.container}>
-      <ScrollView contentContainerStyle={styles.scrollContent}>
-        <Box
-          className="h-full justify-between p-6 gap-y-10"
-          justifyContent="space-between"
+    <SafeAreaView
+      style={[styles.container, { backgroundColor: colors.background }]}
+    >
+      <Box flex={1}>
+        <ScrollView
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
         >
-          <VStack space="3xl">
-            <CustomText heading size="4xl" color="$textDark900">
-              Settings
-            </CustomText>
-            <FormControl isRequired>
-              <FormControlLabel>
-                <CustomText heading size="lg" color="$textDark900">
-                  Server IP Address
-                </CustomText>
-              </FormControlLabel>
-              <Input size="lg" variant="outline" mb="$2">
-                <InputField
-                  value={serverIP}
-                  onChangeText={setServerIP}
-                  placeholder="Enter server IP (e.g., 192.168.1.100)"
-                  keyboardType="numeric"
-                  autoCapitalize="none"
-                  style={{ fontFamily: 'Geist-Regular' }}
+          <Box px="$6">
+            <VStack space="md" mt="$2">
+              <CustomText heading size="2xl" color={colors.primary}>
+                Accessibility
+              </CustomText>
+              <FontSizeSlider />
+              <HStack
+                space="md"
+                alignItems="center"
+                justifyContent="space-between"
+                mt="$4"
+              >
+                <VStack>
+                  <CustomText heading size="lg" color="$textDark900">
+                    High Contrast Mode
+                  </CustomText>
+                  <CustomText medium size="sm" color="$textDark500">
+                    Increase color contrast for better visibility
+                  </CustomText>
+                </VStack>
+                <Switch
+                  size="lg"
+                  value={highContrast}
+                  onValueChange={setHighContrast}
+                  trackColor={{ false: '#e5e7eb', true: '#3b82f6' }}
+                  thumbColor={highContrast ? '#fff' : '#fff'}
                 />
-              </Input>
-              <FormControlHelper>
-                <CustomText regular size="sm" color="$textDark500">
-                  Enter the IP address of your server
-                </CustomText>
-              </FormControlHelper>
-            </FormControl>
+              </HStack>
 
-            <VStack space="4xl" mt="$5">
               <HStack
                 space="md"
                 alignItems="center"
@@ -155,63 +162,104 @@ const SettingsScreen = ({ navigation }) => {
                   thumbColor={vibrationEnabled ? '#fff' : '#fff'}
                 />
               </HStack>
-
-              <HStack
-                space="md"
-                alignItems="center"
-                justifyContent="space-between"
-              >
-                <VStack>
-                  <CustomText heading size="lg" color="$textDark900">
-                    Development Mode
-                  </CustomText>
-                  <CustomText medium size="sm" color="$textDark500">
-                    Enable developer features
-                  </CustomText>
-                </VStack>
-                <Switch
-                  size="lg"
-                  value={developmentMode}
-                  onValueChange={setDevelopmentMode}
-                  trackColor={{ false: '#e5e7eb', true: '#3b82f6' }}
-                  thumbColor={developmentMode ? '#fff' : '#fff'}
-                />
-              </HStack>
+              <Divider />
+              <VStack space="md">
+                <CustomText heading size="2xl" color={colors.primary}>
+                  Developer Settings
+                </CustomText>
+                <HStack
+                  space="md"
+                  alignItems="center"
+                  justifyContent="space-between"
+                >
+                  <VStack>
+                    <CustomText heading size="lg" color="$textDark900">
+                      Development Mode
+                    </CustomText>
+                    <CustomText medium size="sm" color="$textDark500">
+                      Enable developer features
+                    </CustomText>
+                  </VStack>
+                  <Switch
+                    size="lg"
+                    value={developmentMode}
+                    onValueChange={setDevelopmentMode}
+                    trackColor={{ false: '#e5e7eb', true: '#3b82f6' }}
+                    thumbColor={developmentMode ? '#fff' : '#fff'}
+                  />
+                </HStack>
+                <FormControl isRequired>
+                  <FormControlLabel>
+                    <CustomText heading size="lg" color="$textDark900">
+                      Server IP Address
+                    </CustomText>
+                  </FormControlLabel>
+                  <FormControlHelper>
+                    <CustomText regular size="sm" color="$textDark500">
+                      Enter the IP address of your server
+                    </CustomText>
+                  </FormControlHelper>
+                  <Input size="lg" variant="outline" mb="$2">
+                    <InputField
+                      value={serverIP}
+                      onChangeText={setServerIP}
+                      placeholder="Enter server IP (e.g., 192.168.1.100)"
+                      keyboardType="numeric"
+                      autoCapitalize="none"
+                      style={{
+                        fontFamily: 'Geist-Regular',
+                        fontSize: fontSize * 16,
+                        height: 'fit-content',
+                        color: colors.primary,
+                      }}
+                    />
+                  </Input>
+                </FormControl>
+              </VStack>
             </VStack>
+          </Box>
+        </ScrollView>
 
-            {error && (
-              <Text
-                size="sm"
-                color="$error700"
-                textAlign="center"
-                mt="$4"
-                style={{ fontFamily: 'GeistRegular' }}
-              >
-                {error}
-              </Text>
-            )}
-          </VStack>
-          <Button
-            className="mt-6 bg-blue-500"
+        <Box
+          position="absolute"
+          bottom={0}
+          left={0}
+          right={0}
+          p="$6"
+          backgroundColor={colors.background}
+        >
+          {error && (
+            <Text
+              size="sm"
+              color="$error700"
+              textAlign="center"
+              mb="$4"
+              style={{ fontFamily: 'GeistRegular' }}
+            >
+              {error}
+            </Text>
+          )}
+          <AccessibleButton
             size="xl"
             variant="solid"
             action="primary"
-            mt="$6"
             onPress={handleSaveSettings}
             isDisabled={isSaving}
+            style={{
+              backgroundColor: colors.primary,
+              marginLeft: 16,
+              marginRight: 16,
+              marginBottom: 8,
+            }}
           >
-            <ButtonText style={{ fontFamily: 'Geist-SemiBold' }}>
+            <ButtonText
+              style={{ fontFamily: 'Geist-SemiBold', color: colors.background }}
+            >
               {isSaving ? 'Saving...' : 'Save Settings'}
             </ButtonText>
-          </Button>
+          </AccessibleButton>
         </Box>
-      </ScrollView>
-      {/* <ErrorPopup
-        isVisible={isErrorVisible}
-        error={error}
-        onRetry={handleRetry}
-        onClose={() => setIsErrorVisible(false)}
-      /> */}
+      </Box>
     </SafeAreaView>
   );
 };
@@ -219,10 +267,13 @@ const SettingsScreen = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
+    paddingTop: -32,
   },
   scrollContent: {
     flexGrow: 1,
+    paddingBottom: 100,
+    paddingLeft: 16,
+    paddingRight: 16,
   },
 });
 

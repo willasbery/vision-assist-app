@@ -1,45 +1,41 @@
 import React, { useState, useEffect, useRef } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  SafeAreaView,
-  ScrollView,
-  Image,
-} from 'react-native';
+import { View, Text, StyleSheet, SafeAreaView, ScrollView } from 'react-native';
 import { Button, ButtonText, ButtonIcon } from '@/src/components/ui/button';
 import { Box } from '@/src/components/ui/box';
 import { VStack } from '@/src/components/ui/vstack';
 import { Spinner } from '@/src/components/ui/spinner';
 import * as ImagePicker from 'expo-image-picker';
-import { VideoView, createVideoPlayer } from 'expo-video';
+import { createVideoPlayer, VideoView } from 'expo-video';
 import { Ionicons } from '@expo/vector-icons';
 import Slider from '@react-native-community/slider';
 import ErrorPopup from '@/src/components/ErrorPopup';
 import { useWebSocket } from '@/src/hooks/useWebSocket';
 import { useServerIP } from '@/src/hooks/useServerIP';
 import { useFocusEffect } from '@react-navigation/native';
-import * as VideoThumbnails from 'expo-video-thumbnails';
 import * as FileSystem from 'expo-file-system';
+import { Image } from 'expo-image';
+import { FFmpegKit, ReturnCode } from 'ffmpeg-kit-react-native';
 
 const TestingScreen = () => {
-  const [video, setVideo] = useState(null);
-  const [videoSource, setVideoSource] = useState(null);
-  const [fps, setFps] = useState(10); // Default to 10 FPS for better performance
-  const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState(null);
   const [isErrorVisible, setIsErrorVisible] = useState(false);
-  const [progress, setProgress] = useState(0);
-  const [totalFrames, setTotalFrames] = useState(0);
 
-  const [currentFrame, setCurrentFrame] = useState(0);
-  const [currentFrameImage, setCurrentFrameImage] = useState(null);
+  const [video, setVideo] = useState(null);
+  const [videoSource, setVideoSource] = useState(null);
+
+  const [progress, setProgress] = useState(0);
+  const [isProcessing, setIsProcessing] = useState(false);
+
+  const [fps, setFps] = useState(5); // Default to 10 FPS for better performance
+  const [currentFrame, setCurrentFrame] = useState(null);
+  const [currentFrameNumber, setCurrentFrameNumber] = useState(0);
+  const [totalFrames, setTotalFrames] = useState(0);
   const [currentInstruction, setCurrentInstruction] = useState(null);
 
-  const processingRef = useRef(false);
   const videoRef = useRef(null);
+  const processingRef = useRef(null);
   const frameIntervalRef = useRef(null);
-  const processAllowedRef = useRef(true);
+  const frameAckResolveRef = useRef(null);
 
   const { serverIP } = useServerIP();
   const {
@@ -51,7 +47,12 @@ const TestingScreen = () => {
     enabled: false,
     onMessage: (response) => {
       console.log('Server response:', response);
-      processAllowedRef.current = true;
+
+      if (frameAckResolveRef.current) {
+        frameAckResolveRef.current(response);
+        frameAckResolveRef.current = null;
+      }
+
       setCurrentInstruction(response.data);
     },
   });
@@ -88,10 +89,8 @@ const TestingScreen = () => {
       if (!result.canceled && result.assets[0]) {
         const videoSource = result.assets[0]?.uri;
         setVideoSource(videoSource);
-        setProgress(0);
         setCurrentFrame(0);
         setTotalFrames(0);
-        setCurrentFrameImage(null);
       }
     } catch (error) {
       setError('Failed to select video');
@@ -106,29 +105,6 @@ const TestingScreen = () => {
     }
   }, [videoSource]);
 
-  const generateThumbnail = async (videoUri, timeInS) => {
-    try {
-      const timeInMs = timeInS * 1000;
-
-      const { uri } = await VideoThumbnails.getThumbnailAsync(videoUri, {
-        time: timeInMs,
-        quality: 1,
-      });
-
-      console.log('Grabbing frame from', timeInMs, timeInS);
-
-      // Convert thumbnail to base64
-      const base64 = await FileSystem.readAsStringAsync(uri, {
-        encoding: FileSystem.EncodingType.Base64,
-      });
-
-      return [uri, base64];
-    } catch (e) {
-      console.error('Error generating thumbnail:', e);
-      throw e;
-    }
-  };
-
   const processVideoFrames = async () => {
     if (!video || !serverIP || !videoSource) {
       setError('Please select a video first');
@@ -137,85 +113,94 @@ const TestingScreen = () => {
 
     setIsProcessing(true);
     processingRef.current = true;
-    setProgress(0);
-    setCurrentFrame(0);
-    setCurrentFrameImage(null);
 
-    try {
-      // Get video duration
-      const duration = video.duration;
-      const frameInterval = 1 / fps;
-      const estimatedTotalFrames = Math.floor(duration / frameInterval);
-      setTotalFrames(estimatedTotalFrames);
+    const duration = video.duration;
+    const frameInterval = 1 / fps;
+    const estimatedTotalFrames = Math.floor(duration / frameInterval);
+    setTotalFrames(estimatedTotalFrames);
 
-      console.log(
-        `Video duration: ${duration}s, FPS: ${fps}, Total frames: ~${estimatedTotalFrames}`
-      );
+    console.log('Video is', duration, 'seconds long');
+    console.log('Frame interval is', frameInterval, 'seconds');
+    console.log('Estimated total frames are', estimatedTotalFrames);
 
-      let currentTime = 0;
-      let frameCount = 0;
+    const outputFileUri = `${FileSystem.documentDirectory}/thumbnail`;
+    console.log('Output file URI:', outputFileUri);
 
-      const processNextFrame = async () => {
-        if (!processingRef.current || currentTime >= duration) {
-          stopProcessing();
-          return;
+    setCurrentInstruction('Processing video...');
+
+    // Generate thumbnails for every frame using FFmpegKit
+    // FFmpegKit is deprecated, but as expo-video/expo-video-thumbnails
+    // are not working, I am using this instead
+    await FFmpegKit.execute(
+      `-loglevel quiet -i ${videoSource} -vf fps=${fps} '${outputFileUri}%d.png'`
+    )
+      .then(async (session) => {
+        const returnCode = await session.getReturnCode();
+
+        if (ReturnCode.isSuccess(returnCode)) {
+          console.log('Thumbnails generated successfully');
+        } else {
+          console.log('Error generating thumbnails:', returnCode);
         }
+      })
+      .catch((error) => {
+        console.error('Error generating thumbnails:', error);
+      });
 
-        try {
-          // Generate thumbnail for current time
-          const [uri, base64Frame] = await generateThumbnail(
-            videoSource,
-            currentTime
-          );
+    setCurrentInstruction('Video processed. Sending frames to server...');
 
-          // Update video view with the current frame being processed
-          setCurrentFrameImage(uri);
+    // Process each frame sequentially, awaiting the server response for each
+    for (let i = 0; i < estimatedTotalFrames; i++) {
+      // // Check if processing is stopped
+      if (!processingRef.current) {
+        console.log('Processing stopped by user');
+        break;
+      }
 
-          // Send frame to server
-          const success = send({
-            type: 'frame',
-            data: `data:image/jpeg;base64,${base64Frame}`,
-            timestamp: Date.now(),
-          });
+      console.log('Processing frame', i + 1, 'of', estimatedTotalFrames);
+      const frameTime = i * frameInterval;
+      const framePath = `${outputFileUri}${i + 1}.png`;
 
-          if (!success) {
-            throw new Error('Failed to send frame', success);
-          }
+      // Read the thumbnail image in base64 format
+      const thumbnail = await FileSystem.readAsStringAsync(framePath, {
+        encoding: FileSystem.EncodingType.Base64,
+      });
 
-          processAllowedRef.current = false;
+      // Create a promise that will be resolved when the server responds
+      const ackPromise = new Promise((resolve, reject) => {
+        frameAckResolveRef.current = resolve;
+      });
 
-          // Wait until processAllowedRef.current is true
-          while (!processAllowedRef.current) {
-            await new Promise((resolve) => setTimeout(resolve, 100));
-          }
+      // Send the frame to the server
+      const success = send({
+        type: 'frame',
+        data: `data:image/jpeg;base64,${thumbnail}`,
+        timestamp: Date.now(),
+      });
 
-          // Update progress
-          frameCount++;
-          setCurrentFrame(frameCount);
-          setProgress(Math.min(100, (currentTime / duration) * 100));
+      if (!success) {
+        console.error('Failed to send frame');
+        // You could choose to reject the promise here if needed:
+        frameAckResolveRef.current = null;
+        continue;
+      }
 
-          // Move to next frame
-          currentTime += frameInterval;
-          setTimeout(processNextFrame, 50);
-        } catch (error) {
-          console.error('Error processing frame:', error);
-          setError(`Error processing frame: ${error.message}`);
-          stopProcessing();
-        }
-      };
+      // Await the server response for this frame before proceeding
+      const response = await ackPromise;
+      console.log('Frame', i + 1, 'acknowledged with response:', response);
 
-      // Start processing
-      processNextFrame();
-    } catch (error) {
-      console.error('Error processing video:', error);
-      setError(`Error processing video: ${error.message}`);
-      stopProcessing();
+      setCurrentFrame(thumbnail);
+      setCurrentFrameNumber(i + 1);
+      setProgress((i / (estimatedTotalFrames - 1)) * 100);
     }
+
+    console.log('Processing complete');
+    // setIsProcessing(false);
   };
 
   const stopProcessing = () => {
-    processingRef.current = false;
     setIsProcessing(false);
+    processingRef.current = false;
 
     if (frameIntervalRef.current) {
       clearTimeout(frameIntervalRef.current);
@@ -243,15 +228,52 @@ const TestingScreen = () => {
             </Button>
 
             {video &&
-              (isProcessing && currentFrameImage ? (
-                <>
-                  <Image
-                    style={styles.videoPreview}
-                    source={{ uri: currentFrameImage }}
-                    resizeMode="contain"
-                  />
-                  <Text>{currentInstruction}</Text>
-                </>
+              (isProcessing ? (
+                currentInstruction === 'Processing video...' ? (
+                  <Text style={{ fontSize: 16, fontFamily: 'Geist-Medium' }}>
+                    {currentInstruction}
+                  </Text>
+                ) : currentInstruction ===
+                  'Video processed. Sending frames to server...' ? (
+                  <>
+                    <Text style={{ fontSize: 16, fontFamily: 'Geist-Medium' }}>
+                      {currentInstruction}
+                    </Text>
+                  </>
+                ) : (
+                  <>
+                    <Image
+                      style={styles.videoPreview}
+                      placeholder="Testing"
+                      source={{
+                        uri: `data:image/jpeg;base64,${currentFrame}`,
+                      }}
+                      contentFit="contain"
+                      transition={100}
+                    />
+                    <Text style={{ fontSize: 16, fontFamily: 'Geist-Medium' }}>
+                      Current instruction: {currentInstruction}
+                    </Text>
+
+                    <Box alignItems="center" mt="$4">
+                      {/* <Spinner size="large" color="#3b82f6" /> */}
+                      <Text style={styles.processingText}>
+                        Processing frame {currentFrameNumber} of {totalFrames}
+                      </Text>
+                      <View style={styles.progressBarContainer}>
+                        <View
+                          style={[
+                            styles.progressBar,
+                            { width: `${progress}%` },
+                          ]}
+                        />
+                      </View>
+                      <Text style={styles.progressText}>
+                        {Math.round(progress)}% complete
+                      </Text>
+                    </Box>
+                  </>
+                )
               ) : (
                 <>
                   <VideoView
@@ -265,66 +287,51 @@ const TestingScreen = () => {
                 </>
               ))}
 
-            <Box mt="$4">
-              <Text style={styles.label}>Frames Per Second: {fps}</Text>
-              <Slider
-                minimumValue={1}
-                maximumValue={30}
-                step={1}
-                value={fps}
-                onValueChange={setFps}
-                minimumTrackTintColor="#3b82f6"
-                maximumTrackTintColor="#d1d5db"
-                thumbTintColor="#3b82f6"
-                disabled={isProcessing}
-              />
-              <Text style={styles.helperText}>
-                Lower FPS = faster processing, higher FPS = smoother video
-              </Text>
-            </Box>
-
             {isProcessing ? (
-              <>
-                <Button
-                  className="bg-blue-500"
-                  size="xl"
-                  variant="solid"
-                  action="secondary"
-                  onPress={stopProcessing}
-                >
-                  <ButtonText style={{ fontFamily: 'Geist-Regular' }}>
-                    Stop Processing
-                  </ButtonText>
-                </Button>
-
-                <Box alignItems="center" mt="$4">
-                  <Spinner size="large" color="#3b82f6" />
-                  <Text style={styles.processingText}>
-                    Processing frame {currentFrame} of ~{totalFrames}
-                  </Text>
-                  <View style={styles.progressBarContainer}>
-                    <View
-                      style={[styles.progressBar, { width: `${progress}%` }]}
-                    />
-                  </View>
-                  <Text style={styles.progressText}>
-                    {Math.round(progress)}% complete
-                  </Text>
-                </Box>
-              </>
-            ) : (
               <Button
                 className="bg-blue-500"
                 size="xl"
                 variant="solid"
-                action="primary"
-                onPress={processVideoFrames}
-                disabled={!video || isProcessing}
+                action="secondary"
+                onPress={stopProcessing}
               >
                 <ButtonText style={{ fontFamily: 'Geist-Regular' }}>
-                  Start Processing
+                  Stop Processing
                 </ButtonText>
               </Button>
+            ) : (
+              <>
+                <Box mt="$4">
+                  <Text style={styles.label}>Frames Per Second: {fps}</Text>
+                  <Slider
+                    minimumValue={1}
+                    maximumValue={30}
+                    step={1}
+                    value={fps}
+                    onValueChange={(value) => setFps(value)}
+                    onSlidingComplete={(value) => setFps(value)}
+                    minimumTrackTintColor="#3b82f6"
+                    maximumTrackTintColor="#d1d5db"
+                    thumbTintColor="#3b82f6"
+                    disabled={isProcessing}
+                  />
+                  <Text style={styles.helperText}>
+                    Lower FPS = faster processing, higher FPS = smoother video
+                  </Text>
+                </Box>
+                <Button
+                  className="bg-blue-500"
+                  size="xl"
+                  variant="solid"
+                  action="primary"
+                  onPress={processVideoFrames}
+                  disabled={!video || isProcessing}
+                >
+                  <ButtonText style={{ fontFamily: 'Geist-Regular' }}>
+                    Start Processing
+                  </ButtonText>
+                </Button>
+              </>
             )}
           </VStack>
         </Box>
@@ -343,7 +350,6 @@ const TestingScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
   },
   scrollContent: {
     flexGrow: 1,
@@ -358,19 +364,16 @@ const styles = StyleSheet.create({
   label: {
     fontSize: 16,
     marginBottom: 8,
-    color: '#333',
     fontFamily: 'Geist-Medium',
   },
   helperText: {
     fontSize: 12,
     marginTop: 4,
-    color: '#666',
     fontFamily: 'Geist-Regular',
   },
   processingText: {
     marginTop: 8,
     fontSize: 14,
-    color: '#666',
     fontFamily: 'Geist-Regular',
   },
   progressText: {

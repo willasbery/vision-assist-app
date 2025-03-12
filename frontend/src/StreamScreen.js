@@ -1,7 +1,9 @@
-import React, { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { Text, StyleSheet, View } from 'react-native';
 import {
   Camera,
+  runAsync,
+  runAtTargetFps,
   useCameraDevice,
   useCameraFormat,
   useCameraPermission,
@@ -16,14 +18,19 @@ import { useFocusEffect } from '@react-navigation/native';
 
 import ErrorPopup from '@/src/components/ErrorPopup';
 import NoServerIP from '@/src/components/NoServerIP';
+import DirectionalArrow from '@/src/components/DirectionalArrow';
 import { convertFrameToBase64 } from '@/src/utils/convertFrameToBase64';
 import { playAudio, unloadSounds } from '@/src/utils/audioPlayer';
 import { useWebSocket } from '@/src/hooks/useWebSocket';
 import { useServerIP } from '@/src/hooks/useServerIP';
+import { useAccessibility } from '@/src/hooks/useAccessibility';
+import { getColors } from '@/src/theme/colors';
+import AccessibleButton from '@/src/components/AccessibleButton';
 
 const StreamScreen = ({ navigation }) => {
-  const [instructions, setInstructions] = useState(null);
+  const [instruction, setInstruction] = useState(null);
   const [isErrorVisible, setIsErrorVisible] = useState(false);
+
   const processingRef = useRef(false);
   const cameraRef = useRef(null);
   const mountedAtRef = useRef(0);
@@ -86,6 +93,7 @@ const StreamScreen = ({ navigation }) => {
 
         console.log('Instruction  received:', response.data);
         playAudio(response.data);
+        setInstruction(response.data);
 
         lastInstructionTimeRef.current = now;
       }
@@ -173,23 +181,30 @@ const StreamScreen = ({ navigation }) => {
     }
   });
 
-  const frameProcessor = useFrameProcessor(
-    (frame) => {
+  const frameProcessor = useFrameProcessor((frame) => {
+    'worklet';
+
+    runAtTargetFps(10, () => {
       'worklet';
+
       const imageAsBase64 = convertFrameToBase64(frame);
+
       if (imageAsBase64) {
         onConversion(imageAsBase64);
       }
-    },
-    [onConversion]
-  );
+    });
+  });
 
   useFocusEffect(
-    React.useCallback(() => {
+    useCallback(() => {
       setEnabled(true);
       return () => setEnabled(false);
     }, [setEnabled])
   );
+
+  // Add accessibility context
+  const { highContrast, fontSize } = useAccessibility();
+  const colors = getColors(highContrast);
 
   if (!serverIP) {
     return (
@@ -216,31 +231,46 @@ const StreamScreen = ({ navigation }) => {
   }
 
   return (
-    <SafeAreaView style={styles.container}>
-      <Camera
-        ref={cameraRef}
-        style={StyleSheet.absoluteFill}
-        device={device}
-        format={format}
-        isActive={!error}
-        frameProcessor={frameProcessor}
-        enableZoomGesture={true}
-        onError={(error) => console.error('Camera error:', error)}
-        androidPreviewViewType="surface-view"
-      />
-
-      {instructions && (
-        <View style={styles.instructionsContainer}>
-          <Text style={styles.instructions}>
-            {instructions.map(
-              (instruction, index) =>
-                `${index + 1}. ${instruction.instruction_type}: ${
-                  instruction.direction
-                } (${instruction.danger} danger)\n`
-            )}
-          </Text>
+    <SafeAreaView
+      style={[styles.container, { backgroundColor: colors.background }]}
+    >
+      <View style={StyleSheet.absoluteFill}>
+        <Camera
+          ref={cameraRef}
+          style={StyleSheet.absoluteFill}
+          device={device}
+          format={format}
+          isActive={!error}
+          frameProcessor={frameProcessor}
+          enableZoomGesture={true}
+          onError={(error) => console.error('Camera error:', error)}
+          androidPreviewViewType="surface-view"
+        />
+        <View style={styles.overlayContainer}>
+          <DirectionalArrow direction={instruction} />
+          <View
+            style={[
+              styles.instructionsContainer,
+              {
+                backgroundColor: highContrast
+                  ? 'rgba(0, 0, 0, 0.9)'
+                  : 'rgba(255, 255, 255, 0.9)',
+              },
+            ]}
+          >
+            <Text
+              style={[
+                styles.instruction,
+                {
+                  color: highContrast ? colors.text.light : colors.text.dark900,
+                },
+              ]}
+            >
+              Current Instruction: {instruction || 'Waiting...'}
+            </Text>
+          </View>
         </View>
-      )}
+      </View>
 
       <ErrorPopup
         isVisible={isErrorVisible}
@@ -249,6 +279,19 @@ const StreamScreen = ({ navigation }) => {
         onSettings={() => navigation.navigate('Settings')}
         onClose={() => setIsErrorVisible(false)}
       />
+
+      {/* <AccessibleButton
+        size="lg"
+        variant="solid"
+        action="primary"
+        onPress={requestPermission}
+        isDisabled={!hasPermission}
+        style={{ backgroundColor: colors.primary }}
+      >
+        <ButtonText style={{ color: colors.text.light }}>
+          Grant Permission
+        </ButtonText>
+      </AccessibleButton> */}
     </SafeAreaView>
   );
 };
@@ -258,7 +301,14 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#fff',
+  },
+  overlayContainer: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    zIndex: 1,
   },
   message: {
     fontSize: 16,
@@ -283,14 +333,16 @@ const styles = StyleSheet.create({
     top: 100,
     left: 20,
     right: 20,
-    backgroundColor: 'rgba(255, 255, 255, 0.9)',
     padding: 15,
     borderRadius: 10,
     elevation: 3,
+    zIndex: 2,
   },
-  instructions: {
+  instruction: {
     fontSize: 14,
     lineHeight: 20,
+    textAlign: 'center',
+    fontFamily: 'Geist-Regular',
   },
   errorContainer: {
     position: 'absolute',
